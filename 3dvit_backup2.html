@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vitreous 3D | Grapher</title>
+
+    <!-- Google Fonts: DM Serif Text -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Text:ital@0;1&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* Default Dark Mode Variables */
+            --bg-color: #0f172a;
+            --bg-gradient: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+            --panel-bg: rgba(30, 41, 59, 0.75);
+            --text-color: #f8fafc;
+            --text-muted: #cbd5e1;
+            --accent-color: #3b82f6;
+            --border-color: rgba(255, 255, 255, 0.15);
+            --input-bg: rgba(15, 23, 42, 0.6);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            --section-bg: rgba(255, 255, 255, 0.03);
+            --input-border: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Light Mode Overrides */
+        body.light-mode {
+            --bg-color: #f1f5f9;
+            --bg-gradient: radial-gradient(circle at 50% 50%, #f8fafc 0%, #e2e8f0 100%);
+            --panel-bg: rgba(255, 255, 255, 0.75);
+            --text-color: #1e293b;
+            --text-muted: #64748b;
+            --accent-color: #2563eb;
+            --border-color: rgba(0, 0, 0, 0.1);
+            --input-bg: rgba(255, 255, 255, 0.6);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+            --section-bg: rgba(0, 0, 0, 0.03);
+            --input-border: rgba(0, 0, 0, 0.15);
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'DM Serif Text', serif;
+            background-color: var(--bg-color);
+            background: var(--bg-gradient);
+            color: var(--text-color);
+            letter-spacing: 0.02em;
+            transition: background 0.5s ease;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+
+        /* Glass Panel */
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 400px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 0;
+            border-radius: 16px;
+            box-shadow: var(--glass-shadow);
+            border: 1px solid var(--border-color);
+            max-height: 90vh;
+            overflow-y: auto;
+            transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), background 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        #ui-panel.minimized {
+            transform: translateX(calc(-100% - 40px));
+        }
+
+        #ui-panel::-webkit-scrollbar { width: 6px; }
+        #ui-panel::-webkit-scrollbar-track { background: transparent; }
+        #ui-panel::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.3); border-radius: 3px; }
+
+        .panel-content {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .settings-group {
+            background: var(--section-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 5px;
+        }
+
+        .group-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Layer List */
+        .layer-manager {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        .layer-list {
+            max-height: 140px;
+            overflow-y: auto;
+        }
+
+        .layer-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+            color: var(--text-color);
+            opacity: 0.8;
+        }
+
+        .layer-item:hover { background: rgba(125,125,125,0.1); opacity: 1; }
+        .layer-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            border-left: 3px solid var(--accent-color);
+            padding-left: 11px;
+            opacity: 1;
+            font-weight: 600;
+        }
+
+        .layer-name { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; }
+
+        .layer-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 1.2rem;
+        }
+        .layer-btn:hover { color: #fca5a5; }
+
+        #add-layer-btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 0.9rem;
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-color);
+            border: none;
+            border-top: 1px solid var(--border-color);
+            font-family: 'DM Serif Text', serif;
+            cursor: pointer;
+        }
+        #add-layer-btn:hover { background: rgba(59, 130, 246, 0.2); }
+
+        /* Controls */
+        .control-group { margin-bottom: 12px; }
+        label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--text-muted); }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            color: var(--text-color);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-family: 'Menlo', 'Monaco', monospace;
+            box-sizing: border-box;
+            font-size: 0.85rem;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--accent-color); }
+
+        input[type="color"] {
+            width: 100%;
+            height: 36px;
+            padding: 4px;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-color);
+            height: 6px;
+            background: rgba(125,125,125,0.2);
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .row { display: flex; gap: 12px; }
+        .three-col { display: flex; gap: 8px; }
+        .three-col > div, .row > div { flex: 1; }
+
+        button {
+            width: 100%;
+            background: rgba(59, 130, 246, 0.8);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: 'DM Serif Text', serif;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        button:hover { background: var(--accent-color); transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+
+        button.secondary-btn {
+            background: rgba(125,125,125,0.1);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-color: var(--border-color);
+        }
+        button.secondary-btn:hover { background: rgba(125,125,125,0.2); color: var(--text-color); }
+
+        .tool-bar {
+            display: flex; gap: 6px; margin-bottom: 12px; background: var(--input-bg); padding: 4px; border-radius: 8px; border: 1px solid var(--border-color);
+        }
+        button.tool-btn { background: transparent; border: none; padding: 6px; font-size: 0.9rem; color: var(--text-muted); border-radius: 6px; cursor: pointer; }
+        button.tool-btn:hover { background: rgba(125,125,125,0.1); }
+        button.tool-btn.selected { background: var(--accent-color); color: white; }
+
+        .type-toggle { display: flex; background: var(--input-bg); border-radius: 8px; padding: 4px; margin-bottom: 16px; border: 1px solid var(--border-color); }
+        .type-toggle button { background: transparent; padding: 8px; font-size: 0.9rem; flex: 1; border-radius: 6px; border: none; color: var(--text-muted); cursor: pointer; }
+        .type-toggle button.active { background: var(--accent-color); color: white; }
+
+        /* FIXED: Panel toggle button visibility */
+        #toggle-panel-btn {
+            position: absolute; top: 20px; left: 20px; z-index: 2000; background: var(--panel-bg); backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color); color: var(--text-color); width: 44px; height: 44px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        #toggle-panel-btn.visible { opacity: 1; pointer-events: auto; }
+
+        .icon-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s; cursor: pointer; }
+        .icon-btn:hover { background: rgba(125,125,125,0.15); color: var(--text-color); }
+
+        #error-msg { color: #f87171; font-size: 0.9rem; margin-top: 6px; min-height: 1.2em; }
+
+        .checkbox-group { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+        .checkbox-group input { width: 18px; height: 18px; cursor: pointer; }
+        .checkbox-group label { margin: 0; cursor: pointer; color: var(--text-color); }
+
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; display: flex; justify-content: center; align-items: center; z-index: 9999; transition: opacity 0.5s;
+        }
+        .spinner { width: 50px; height: 50px; border: 4px solid rgba(59, 130, 246, 0.3); border-top: 4px solid var(--accent-color); border-radius: 50%; animation: spin 1s infinite linear; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .magic-box { background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 12px; }
+        .magic-input-group { display: flex; gap: 8px; }
+        #magic-btn { width: auto; padding: 8px 16px; background: var(--accent-color); }
+
+        .anim-controls { display: flex; gap: 12px; align-items: center; }
+        #play-btn { width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; display: flex; justify-content: center; align-items: center; padding: 0; cursor: pointer; }
+
+        .hidden-empty-state { display: none; color: var(--text-muted); text-align: center; padding: 30px; border: 2px dashed var(--border-color); border-radius: 12px; }
+        .param-input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .param-label { width: 16px; color: var(--accent-color); font-weight: 800; font-family: 'Menlo', monospace; text-align: center; }
+
+        .var-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; background: rgba(125,125,125,0.05); padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); }
+        .var-label { font-family: 'Menlo', monospace; font-weight: bold; color: var(--accent-color); width: 15px;}
+        .var-val { width: 50px !important; padding: 4px !important; text-align: center; }
+
+        .scale-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="loader"><div class="spinner"></div></div>
+
+    <button id="toggle-panel-btn">☰</button>
+
+    <div id="ui-panel">
+        <div class="panel-content">
+            <div class="panel-header">
+                <h1>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                    Vitreous 3D
+                </h1>
+                <div class="header-controls">
+                    <button class="icon-btn" id="screenshot-btn" title="Take Screenshot">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    </button>
+                    <button class="icon-btn" id="theme-btn" title="Toggle Light/Dark Mode">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    </button>
+                    <button class="icon-btn" id="hide-panel-btn">×</button>
+                </div>
+            </div>
+
+            <div class="layer-manager">
+                <div id="layer-list" class="layer-list"></div>
+                <button id="add-layer-btn">+ Add Object</button>
+            </div>
+
+            <div id="empty-state" class="hidden-empty-state">No layers selected.</div>
+
+            <div class="settings-group">
+                <div class="group-title">Variables</div>
+                <div id="variables-container"></div>
+            </div>
+
+            <div id="layer-controls" class="settings-group">
+                <div class="group-title">Object Properties</div>
+                <div class="type-toggle">
+                    <button id="mode-function" class="active">Function</button>
+                    <button id="mode-parametric">Parametric</button>
+                </div>
+
+                <div id="ui-function-mode">
+                    <div class="control-group">
+                        <label>Equation z =</label>
+                        <input type="text" id="eq-z" spellcheck="false" placeholder="sin(a * x)">
+                    </div>
+                    <div class="row">
+                         <div class="control-group">
+                            <label>X Range ±</label>
+                            <input type="text" id="range-x" value="10" inputmode="decimal">
+                        </div>
+                         <div class="control-group">
+                            <label>Y Range ±</label>
+                            <input type="text" id="range-y" value="10" inputmode="decimal">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ui-parametric-mode" style="display: none;">
+                    <div class="control-group">
+                        <div class="param-input-group"><span class="param-label">x</span><input type="text" id="eq-param-x" spellcheck="false" placeholder="(4 + 1.5 * cos(v)) * cos(u)"></div>
+                        <div class="param-input-group"><span class="param-label">y</span><input type="text" id="eq-param-y" spellcheck="false" placeholder="(4 + 1.5 * cos(v)) * sin(u)"></div>
+                        <div class="param-input-group"><span class="param-label">z</span><input type="text" id="eq-param-z" spellcheck="false" placeholder="1.5 * sin(v)"></div>
+                    </div>
+                    <div class="row">
+                        <div class="control-group"><label>U Range</label><div class="row"><input type="text" id="u-min" value="0" inputmode="decimal"><input type="text" id="u-max" value="6.28" inputmode="decimal"></div></div>
+                        <div class="control-group"><label>V Range</label><div class="row"><input type="text" id="v-min" value="0" inputmode="decimal"><input type="text" id="v-max" value="6.28" inputmode="decimal"></div></div>
+                    </div>
+                </div>
+
+                <div id="error-msg"></div>
+                <div class="checkbox-group"><input type="checkbox" id="use-equation-anim" checked><label for="use-equation-anim">Animate (t)</label></div>
+                <div class="checkbox-group"><input type="checkbox" id="closed-shape"><label for="closed-shape">Closed (Mirror Z)</label></div>
+
+                <div class="control-group" style="border-top: 1px solid var(--border-color); padding-top: 12px;">
+                    <label>Cursor Gizmo</label>
+                    <div class="tool-bar">
+                        <button class="tool-btn selected" id="tool-translate">Move</button>
+                        <button class="tool-btn" id="tool-rotate">Rotate</button>
+                        <button class="tool-btn" id="tool-scale">Scale</button>
+                        <button class="tool-btn" id="tool-none">None</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Position</label>
+                    <div class="three-col">
+                        <input type="number" id="pos-x" step="0.5"><input type="number" id="pos-y" step="0.5"><input type="number" id="pos-z" step="0.5">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Scale Magnitude</label>
+                    <div class="scale-row"><span class="var-label">X</span><input type="range" id="slider-scale-x" min="0.1" max="5" step="0.1"><input type="number" id="scale-x" step="0.1"></div>
+                    <div class="scale-row"><span class="var-label">Y</span><input type="range" id="slider-scale-y" min="0.1" max="5" step="0.1"><input type="number" id="scale-y" step="0.1"></div>
+                    <div class="scale-row"><span class="var-label">Z</span><input type="range" id="slider-scale-z" min="0.1" max="5" step="0.1"><input type="number" id="scale-z" step="0.1"></div>
+                </div>
+
+                <div class="control-group">
+                    <label>Quick Mirror</label>
+                    <div class="row">
+                        <button id="flip-x" class="tool-btn" style="border: 1px solid var(--border-color);">Flip X</button>
+                        <button id="flip-y" class="tool-btn" style="border: 1px solid var(--border-color);">Flip Y</button>
+                        <button id="flip-z" class="tool-btn" style="border: 1px solid var(--border-color);">Flip Z</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Appearance</label>
+                    <div class="row">
+                        <select id="material-style"><option value="plastic">Plastic</option><option value="water">Water</option><option value="glass">Glass</option><option value="wireframe">Wireframe</option></select>
+                        <select id="pattern-style"><option value="none">No Texture</option><option value="checker">Checker</option><option value="grid">Grid</option><option value="bricks">Bricks</option><option value="ripples">Ripples</option></select>
+                    </div>
+                    <div class="row" style="margin-top: 8px;"><label>Opacity</label><input type="range" id="opacity-slider" min="0.1" max="1" step="0.05" value="1"></div>
+                </div>
+
+                <div class="row">
+                    <div class="control-group"><label>Low Color</label><input type="color" id="color-low" value="#3b82f6"></div>
+                    <div class="control-group"><label>High Color</label><input type="color" id="color-high" value="#60a5fa"></div>
+                </div>
+                <button id="update-btn">Apply Equations</button>
+            </div>
+
+            <div class="settings-group">
+                <div class="group-title">Global Scene</div>
+                <div class="magic-box">
+                    <label style="margin-bottom:6px; display:block; font-size:0.75rem; color:var(--accent-color); font-weight:700;">Magic Generator</label>
+                    <div class="magic-input-group"><input type="text" id="magic-input" placeholder="e.g. 'donut', 'sphere', 'wave'"><button id="magic-btn">Add</button></div>
+                </div>
+
+                <div class="control-group">
+                    <label>Lighting Orientation</label>
+                    <div class="row">
+                        <div style="flex:1"><label>Angle</label><input type="range" id="light-angle" min="0" max="360" value="45"></div>
+                        <div style="flex:1"><label>Height</label><input type="range" id="light-elevation" min="0" max="90" value="45"></div>
+                    </div>
+                </div>
+
+                <div class="anim-controls">
+                    <button id="play-btn" class="active">⏸</button>
+                    <div style="flex-grow: 1;"><label>Animation Speed</label><input type="range" id="anim-speed" min="0" max="0.1" step="0.001" value="0.02"></div>
+                </div>
+                <div class="checkbox-group"><input type="checkbox" id="auto-rotate"><label for="auto-rotate">Auto Rotate Camera</label></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { TransformControls } from 'three/addons/controls/TransformControls.js';
+        import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';
+
+        const config = { bgColor: 0x0f172a };
+        let scene, camera, renderer, controls, transformControl, mainLight, gridHelper;
+        let time = 0, isPlaying = true, raycaster, mouse, isTransforming = false;
+        let currentTransformMode = 'translate';
+        let layers = [], nextLayerId = 1, activeLayerId = null;
+        let userVariables = { a: 1.0, b: 1.0, c: 1.0 };
+
+        const textureCache = new Map();
+        let uiElements = {};
+
+        // Extended shape database with more shapes
+        const shapeDatabase = [
+            { keys: ['donut', 'torus'], type: 'parametric', x: '(4 + 1.5 * cos(v)) * cos(u)', y: '(4 + 1.5 * cos(v)) * sin(u)', z: '1.5 * sin(v)', uRange: [0, 6.28], vRange: [0, 6.28], cLow: '#8b4513', cHigh: '#cd853f' },
+            { keys: ['sphere', 'ball'], type: 'parametric', x: '4 * sin(u) * cos(v)', y: '4 * sin(u) * sin(v)', z: '4 * cos(u)', uRange: [0, 3.14], vRange: [0, 6.28], cLow: '#004488', cHigh: '#4488ff' },
+            { keys: ['cone', 'pyramid'], type: 'parametric', x: '(3 - u) * cos(v)', y: '(3 - u) * sin(v)', z: 'u * 2', uRange: [0, 3], vRange: [0, 6.28], cLow: '#884400', cHigh: '#ffaa44' },
+            { keys: ['cylinder', 'tube'], type: 'parametric', x: '3 * cos(v)', y: '3 * sin(v)', z: 'u - 3', uRange: [0, 6], vRange: [0, 6.28], cLow: '#448844', cHigh: '#88ff88' },
+            { keys: ['wave', 'ripple'], type: 'function', eq: 'sin(sqrt(x^2 + y^2))', cLow: '#2244aa', cHigh: '#66aaff' },
+            { keys: ['saddle', 'hyperbolic'], type: 'function', eq: 'x^2 - y^2', cLow: '#aa2244', cHigh: '#ff6688' }
+        ];
+
+        function init() {
+            // Mapping UI elements with safety
+            const getEl = (id) => document.getElementById(id);
+            uiElements = {
+                layerList: getEl('layer-list'),
+                layerControls: getEl('layer-controls'),
+                emptyState: getEl('empty-state'),
+                modeFunction: getEl('mode-function'),
+                modeParametric: getEl('mode-parametric'),
+                uiFunction: getEl('ui-function-mode'),
+                uiParametric: getEl('ui-parametric-mode'),
+                eqZ: getEl('eq-z'),
+                eqParamX: getEl('eq-param-x'),
+                eqParamY: getEl('eq-param-y'),
+                eqParamZ: getEl('eq-param-z'),
+                rangeX: getEl('range-x'),
+                rangeY: getEl('range-y'),
+                uMin: getEl('u-min'),
+                uMax: getEl('u-max'),
+                vMin: getEl('v-min'),
+                vMax: getEl('v-max'),
+                style: getEl('material-style'),
+                pattern: getEl('pattern-style'),
+                opacity: getEl('opacity-slider'),
+                colorLow: getEl('color-low'),
+                colorHigh: getEl('color-high'),
+                error: getEl('error-msg'),
+                lightAngle: getEl('light-angle'),
+                lightElevation: getEl('light-elevation'),
+                posX: getEl('pos-x'),
+                posY: getEl('pos-y'),
+                posZ: getEl('pos-z'),
+                scaleX: getEl('scale-x'),
+                scaleY: getEl('scale-y'),
+                scaleZ: getEl('scale-z'),
+                sliderScaleX: getEl('slider-scale-x'),
+                sliderScaleY: getEl('slider-scale-y'),
+                sliderScaleZ: getEl('slider-scale-z'),
+                flipX: getEl('flip-x'),
+                flipY: getEl('flip-y'),
+                flipZ: getEl('flip-z'),
+                closedShape: getEl('closed-shape'),
+                useEquationAnim: getEl('use-equation-anim'),
+                autoRotate: getEl('auto-rotate'),
+                varsContainer: getEl('variables-container'),
+                togglePanelBtn: getEl('toggle-panel-btn'),
+                uiPanel: getEl('ui-panel'),
+                hidePanelBtn: getEl('hide-panel-btn'),
+                magicInput: getEl('magic-input')
+            };
+
+            createVariableUI('a', 1.0);
+            createVariableUI('b', 1.0);
+            createVariableUI('c', 1.0);
+
+            const container = getEl('canvas-container');
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(config.bgColor, 0.015);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(15, 15, 15);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            transformControl = new TransformControls(camera, renderer.domElement);
+            transformControl.addEventListener('dragging-changed', (e) => {
+                controls.enabled = !e.value;
+                isTransforming = e.value;
+            });
+            transformControl.addEventListener('change', () => {
+                if (activeLayerId && isTransforming) {
+                    const layer = layers.find(l => l.id === activeLayerId);
+                    if (layer && layer.root) {
+                        layer.posX = layer.root.position.x;
+                        layer.posY = layer.root.position.y;
+                        layer.posZ = layer.root.position.z;
+                        updateUIFromLayer(layer);
+                    }
+                }
+            });
+            scene.add(transformControl);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            scene.add(mainLight);
+            updateLightPosition();
+
+            gridHelper = new THREE.GridHelper(20, 20, 0x555555, 0x222222);
+            scene.add(gridHelper);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            renderer.domElement.addEventListener('pointerdown', onCanvasClick);
+
+            // Default startup shape
+            addLayer({ type: 'function', eq: 'sin(sqrt(x^2 + y^2) - 3t)', name: 'Main Surface' });
+
+            window.addEventListener('resize', onWindowResize);
+
+            // Safe listener attachment helper
+            const attach = (id, type, fn) => {
+                const el = getEl(id);
+                if (el) el.addEventListener(type, fn);
+            };
+
+            attach('add-layer-btn', 'click', () => addLayer({ type: 'function', eq: '0', name: 'New Object' }));
+            attach('update-btn', 'click', updateActiveLayer);
+            attach('magic-btn', 'click', handleMagicCommand);
+
+            // FIXED: Magic input Enter key support
+            if (uiElements.magicInput) {
+                uiElements.magicInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') handleMagicCommand();
+                });
+            }
+
+            if (uiElements.lightAngle) uiElements.lightAngle.addEventListener('input', updateLightPosition);
+            if (uiElements.lightElevation) uiElements.lightElevation.addEventListener('input', updateLightPosition);
+            if (uiElements.modeFunction) uiElements.modeFunction.addEventListener('click', () => setModeUI('function'));
+            if (uiElements.modeParametric) uiElements.modeParametric.addEventListener('click', () => setModeUI('parametric'));
+
+            attach('tool-translate', 'click', () => setTransformMode('translate'));
+            attach('tool-rotate', 'click', () => setTransformMode('rotate'));
+            attach('tool-scale', 'click', () => setTransformMode('scale'));
+            attach('tool-none', 'click', () => setTransformMode('none'));
+
+            if (uiElements.flipX) uiElements.flipX.addEventListener('click', () => flipActiveLayer('x'));
+            if (uiElements.flipY) uiElements.flipY.addEventListener('click', () => flipActiveLayer('y'));
+            if (uiElements.flipZ) uiElements.flipZ.addEventListener('click', () => flipActiveLayer('z'));
+
+            attach('theme-btn', 'click', toggleTheme);
+            attach('screenshot-btn', 'click', takeScreenshot);
+
+            if (uiElements.style) uiElements.style.addEventListener('change', updateActiveLayerMaterialOnly);
+            if (uiElements.pattern) uiElements.pattern.addEventListener('change', updateActiveLayerMaterialOnly);
+            if (uiElements.opacity) uiElements.opacity.addEventListener('input', updateActiveLayerMaterialOnly);
+
+            // FIXED: Position input listeners
+            ['posX', 'posY', 'posZ'].forEach(key => {
+                if (uiElements[key]) {
+                    uiElements[key].addEventListener('input', updateActiveLayerPosition);
+                }
+            });
+
+            // FIXED: Color input listeners for real-time updates
+            if (uiElements.colorLow) uiElements.colorLow.addEventListener('input', updateActiveLayerColors);
+            if (uiElements.colorHigh) uiElements.colorHigh.addEventListener('input', updateActiveLayerColors);
+
+            // FIXED: Checkbox event listeners
+            if (uiElements.closedShape) {
+                uiElements.closedShape.addEventListener('change', () => {
+                    const layer = layers.find(l => l.id === activeLayerId);
+                    if (layer) {
+                        layer.closedShape = uiElements.closedShape.checked;
+                        buildLayerMesh(layer);
+                    }
+                });
+            }
+            if (uiElements.useEquationAnim) {
+                uiElements.useEquationAnim.addEventListener('change', () => {
+                    const layer = layers.find(l => l.id === activeLayerId);
+                    if (layer) {
+                        layer.useEquationAnim = uiElements.useEquationAnim.checked;
+                        layer.dirty = true;
+                    }
+                });
+            }
+
+            // FIXED: Auto-rotate using OrbitControls properly
+            if (uiElements.autoRotate) {
+                uiElements.autoRotate.addEventListener('change', (e) => {
+                    controls.autoRotate = e.target.checked;
+                    controls.autoRotateSpeed = 2.0;
+                });
+            }
+
+            const syncScale = (axis, val) => {
+                const numInput = uiElements[`scale${axis.toUpperCase()}`];
+                const slider = uiElements[`sliderScale${axis.toUpperCase()}`];
+                if (numInput) numInput.value = val;
+                if (slider) slider.value = val;
+                updateActiveLayerTransform();
+            };
+            ['x', 'y', 'z'].forEach(axis => {
+                const slider = uiElements[`sliderScale${axis.toUpperCase()}`];
+                const numInput = uiElements[`scale${axis.toUpperCase()}`];
+                if (slider) slider.addEventListener('input', (e) => syncScale(axis, e.target.value));
+                if (numInput) numInput.addEventListener('input', (e) => syncScale(axis, e.target.value));
+            });
+
+            attach('play-btn', 'click', (e) => {
+                isPlaying = !isPlaying;
+                e.target.textContent = isPlaying ? '⏸' : '▶';
+                e.target.classList.toggle('active', isPlaying);
+            });
+
+            // FIXED: Panel toggle button functionality
+            if (uiElements.hidePanelBtn) {
+                uiElements.hidePanelBtn.addEventListener('click', () => {
+                    if (uiElements.uiPanel) uiElements.uiPanel.classList.add('minimized');
+                    if (uiElements.togglePanelBtn) uiElements.togglePanelBtn.classList.add('visible');
+                });
+            }
+            if (uiElements.togglePanelBtn) {
+                uiElements.togglePanelBtn.addEventListener('click', () => {
+                    if (uiElements.uiPanel) uiElements.uiPanel.classList.remove('minimized');
+                    uiElements.togglePanelBtn.classList.remove('visible');
+                });
+            }
+
+            const loader = getEl('loader');
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => loader.remove(), 500);
+            }
+
+            animate();
+        }
+
+        // FIXED: Update position from UI inputs
+        function updateActiveLayerPosition() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer || !layer.root) return;
+
+            layer.posX = parseFloat(uiElements.posX?.value) || 0;
+            layer.posY = parseFloat(uiElements.posY?.value) || 0;
+            layer.posZ = parseFloat(uiElements.posZ?.value) || 0;
+
+            layer.root.position.set(layer.posX, layer.posY, layer.posZ);
+        }
+
+        // FIXED: Update colors in real-time
+        function updateActiveLayerColors() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer) return;
+
+            layer.colorLow = uiElements.colorLow?.value || '#3b82f6';
+            layer.colorHigh = uiElements.colorHigh?.value || '#60a5fa';
+            layer.dirty = true;
+        }
+
+        // FIXED: Show error message
+        function showError(msg) {
+            if (uiElements.error) {
+                uiElements.error.textContent = msg;
+                setTimeout(() => { if (uiElements.error) uiElements.error.textContent = ''; }, 5000);
+            }
+        }
+
+        function createVariableUI(name, defaultVal) {
+            const row = document.createElement('div');
+            row.className = 'var-row';
+            row.innerHTML = `<div class="var-label">${name}</div><input type="range" min="-10" max="10" step="0.1" value="${defaultVal}"><input type="number" class="var-val" value="${defaultVal}">`;
+            const range = row.querySelector('input[type=range]');
+            const num = row.querySelector('input[type=number]');
+            const update = (v) => { userVariables[name] = parseFloat(v); range.value = v; num.value = v; layers.forEach(l => l.dirty = true); };
+            range.addEventListener('input', (e) => update(e.target.value));
+            num.addEventListener('input', (e) => update(e.target.value));
+            if (uiElements.varsContainer) uiElements.varsContainer.appendChild(row);
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            const newBg = isLight ? 0xf1f5f9 : 0x0f172a;
+            scene.background = new THREE.Color(newBg);
+            scene.fog = new THREE.FogExp2(newBg, 0.015);
+            scene.remove(gridHelper);
+            gridHelper = new THREE.GridHelper(20, 20, isLight ? 0x888888 : 0x555555, isLight ? 0xcccccc : 0x222222);
+            scene.add(gridHelper);
+        }
+
+        function takeScreenshot() {
+            renderer.render(scene, camera);
+            const link = document.createElement('a');
+            link.download = 'Vitreous3D_Capture.png';
+            link.href = renderer.domElement.toDataURL('image/png');
+            link.click();
+        }
+
+        function setModeUI(mode) {
+            if (uiElements.modeFunction) uiElements.modeFunction.classList.toggle('active', mode === 'function');
+            if (uiElements.modeParametric) uiElements.modeParametric.classList.toggle('active', mode === 'parametric');
+            if (uiElements.uiFunction) uiElements.uiFunction.style.display = mode === 'function' ? 'block' : 'none';
+            if (uiElements.uiParametric) uiElements.uiParametric.style.display = mode === 'parametric' ? 'block' : 'none';
+        }
+
+        function setTransformMode(mode) {
+            currentTransformMode = mode;
+            ['translate', 'rotate', 'scale', 'none'].forEach(m => {
+                const btn = document.getElementById('tool-' + m);
+                if (btn) btn.classList.toggle('selected', m === mode);
+            });
+
+            if (mode === 'none') {
+                transformControl.detach();
+            } else {
+                const layer = layers.find(l => l.id === activeLayerId);
+                if (layer && layer.root) {
+                    transformControl.setMode(mode);
+                    transformControl.attach(layer.root);
+                }
+            }
+        }
+
+        function onCanvasClick(event) {
+            if (isTransforming) return;
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            let allMeshes = [];
+            layers.forEach(l => l.root?.traverse(c => { if(c.isMesh) allMeshes.push(c); }));
+            const intersects = raycaster.intersectObjects(allMeshes);
+            if (intersects.length > 0) {
+                const layer = layers.find(l => {
+                    let found = false;
+                    l.root?.traverse(c => { if(c === intersects[0].object) found = true; });
+                    return found;
+                });
+                if (layer && layer.id !== activeLayerId) setActiveLayer(layer.id);
+            }
+        }
+
+        function updateLightPosition() {
+            if (!mainLight || !uiElements.lightAngle || !uiElements.lightElevation) return;
+            const r = 30;
+            const az = (parseFloat(uiElements.lightAngle.value) * Math.PI) / 180;
+            const el = (parseFloat(uiElements.lightElevation.value) * Math.PI) / 180;
+            const cosEl = Math.cos(el);
+            mainLight.position.set(r * cosEl * Math.sin(az), r * Math.sin(el), r * cosEl * Math.cos(az));
+        }
+
+        function addLayer(config = {}) {
+            const id = nextLayerId++;
+            const layer = {
+                id,
+                name: config.name || `Object ${id}`,
+                type: config.type || 'function',
+                equation: config.eq || '0',
+                rangeX: 10, rangeY: 10,
+                pX: config.x || 'u', pY: config.y || 'v', pZ: config.z || '0',
+                uMin: config.uRange ? config.uRange[0] : 0, uMax: config.uRange ? config.uRange[1] : 6.28,
+                vMin: config.vRange ? config.vRange[0] : 0, vMax: config.vRange ? config.vRange[1] : 6.28,
+                style: config.style || 'plastic', pattern: config.pattern || 'none', opacity: 1,
+                colorLow: config.cLow || '#3b82f6', colorHigh: config.cHigh || '#60a5fa',
+                posX: 0, posY: 0, posZ: 0, rotX: 0, rotY: 0, rotZ: 0, scaleX: 1, scaleY: 1, scaleZ: 1,
+                isFlippedX: false, isFlippedY: false, isFlippedZ: false, animMode: 'none', useEquationAnim: true,
+                closedShape: false, root: null, geometry: null, dirty: true
+            };
+            layers.push(layer);
+            buildLayerMesh(layer);
+            renderLayerList();
+            setActiveLayer(id);
+        }
+
+        function removeLayer(id) {
+            const idx = layers.findIndex(l => l.id === id);
+            if (idx > -1) {
+                const l = layers[idx];
+                if(activeLayerId === id) transformControl.detach();
+                if(l.root) {
+                    scene.remove(l.root);
+                    l.root.traverse(c => {
+                        if(c.isMesh) {
+                            if (c.geometry) c.geometry.dispose();
+                            if (c.material) c.material.dispose();
+                        }
+                    });
+                }
+                layers.splice(idx, 1);
+                if (layers.length > 0) {
+                    setActiveLayer(layers[Math.min(idx, layers.length - 1)].id);
+                } else {
+                    activeLayerId = null;
+                    if (uiElements.layerControls) uiElements.layerControls.style.display = 'none';
+                    if (uiElements.emptyState) uiElements.emptyState.style.display = 'block';
+                }
+                renderLayerList();
+            }
+        }
+
+        function setActiveLayer(id) {
+            activeLayerId = id;
+            const layer = layers.find(l => l.id === id);
+            if (!layer) return;
+
+            if (uiElements.layerControls) uiElements.layerControls.style.display = 'block';
+            if (uiElements.emptyState) uiElements.emptyState.style.display = 'none';
+
+            setModeUI(layer.type);
+            if (uiElements.eqZ) uiElements.eqZ.value = layer.equation;
+            if (uiElements.eqParamX) uiElements.eqParamX.value = layer.pX;
+            if (uiElements.eqParamY) uiElements.eqParamY.value = layer.pY;
+            if (uiElements.eqParamZ) uiElements.eqParamZ.value = layer.pZ;
+            if (uiElements.rangeX) uiElements.rangeX.value = layer.rangeX;
+            if (uiElements.rangeY) uiElements.rangeY.value = layer.rangeY;
+            if (uiElements.uMin) uiElements.uMin.value = layer.uMin;
+            if (uiElements.uMax) uiElements.uMax.value = layer.uMax;
+            if (uiElements.vMin) uiElements.vMin.value = layer.vMin;
+            if (uiElements.vMax) uiElements.vMax.value = layer.vMax;
+            if (uiElements.style) uiElements.style.value = layer.style;
+            if (uiElements.pattern) uiElements.pattern.value = layer.pattern;
+            if (uiElements.opacity) uiElements.opacity.value = layer.opacity;
+            if (uiElements.colorLow) uiElements.colorLow.value = layer.colorLow;
+            if (uiElements.colorHigh) uiElements.colorHigh.value = layer.colorHigh;
+            if (uiElements.closedShape) uiElements.closedShape.checked = layer.closedShape;
+            if (uiElements.useEquationAnim) uiElements.useEquationAnim.checked = layer.useEquationAnim;
+
+            updateUIFromLayer(layer);
+            renderLayerList();
+
+            if (currentTransformMode !== 'none') {
+                transformControl.setMode(currentTransformMode);
+                transformControl.attach(layer.root);
+            }
+        }
+
+        function updateUIFromLayer(layer) {
+            if (uiElements.posX) uiElements.posX.value = layer.posX;
+            if (uiElements.posY) uiElements.posY.value = layer.posY;
+            if (uiElements.posZ) uiElements.posZ.value = layer.posZ;
+            if (uiElements.scaleX) uiElements.scaleX.value = layer.scaleX;
+            if (uiElements.scaleY) uiElements.scaleY.value = layer.scaleY;
+            if (uiElements.scaleZ) uiElements.scaleZ.value = layer.scaleZ;
+            if (uiElements.sliderScaleX) uiElements.sliderScaleX.value = layer.scaleX;
+            if (uiElements.sliderScaleY) uiElements.sliderScaleY.value = layer.scaleY;
+            if (uiElements.sliderScaleZ) uiElements.sliderScaleZ.value = layer.scaleZ;
+
+            if (uiElements.flipX) uiElements.flipX.classList.toggle('selected', layer.isFlippedX);
+            if (uiElements.flipY) uiElements.flipY.classList.toggle('selected', layer.isFlippedY);
+            if (uiElements.flipZ) uiElements.flipZ.classList.toggle('selected', layer.isFlippedZ);
+        }
+
+        function updateActiveLayerTransform() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer || !layer.root) return;
+
+            layer.scaleX = Math.abs(parseFloat(uiElements.scaleX?.value)) || 1;
+            layer.scaleY = Math.abs(parseFloat(uiElements.scaleY?.value)) || 1;
+            layer.scaleZ = Math.abs(parseFloat(uiElements.scaleZ?.value)) || 1;
+
+            layer.root.scale.set(
+                layer.scaleX * (layer.isFlippedX ? -1 : 1),
+                layer.scaleY * (layer.isFlippedY ? -1 : 1),
+                layer.scaleZ * (layer.isFlippedZ ? -1 : 1)
+            );
+        }
+
+        function flipActiveLayer(axis) {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer) return;
+            if (axis === 'x') layer.isFlippedX = !layer.isFlippedX;
+            if (axis === 'y') layer.isFlippedY = !layer.isFlippedY;
+            if (axis === 'z') layer.isFlippedZ = !layer.isFlippedZ;
+            updateActiveLayerTransform();
+            updateUIFromLayer(layer);
+        }
+
+        function createFunction(expr, args) {
+            try {
+                let cleaned = expr.replace(/\^/g, '**')
+                                  .replace(/(\d)([a-df-zA-DF-Z\(])/g, '$1*$2')
+                                  .replace(/(\))\s*([a-zA-Z0-9\(])/g, '$1*$2')
+                                  .replace(/\bln\b/g, 'log')
+                                  .replace(/\bpi\b/gi, 'PI')
+                                  .replace(/\be\b/gi, 'E');
+                const vars = Object.keys(userVariables);
+                return new Function(...args, 'variables', `"use strict"; const {${vars.join(',')}} = variables; const {${Object.getOwnPropertyNames(Math).join(',')}} = Math; return ${cleaned};`);
+            } catch (e) {
+                showError('Invalid equation: ' + e.message);
+                return null;
+            }
+        }
+
+        function buildLayerMesh(layer) {
+            if (layer.root) {
+                transformControl.detach();
+                scene.remove(layer.root);
+                layer.root.traverse(c => {
+                    if(c.isMesh) {
+                        if (c.geometry) c.geometry.dispose();
+                        if (c.material) c.material.dispose();
+                    }
+                });
+            }
+
+            layer.root = new THREE.Group();
+            const segments = 100;
+            const mat = createMaterial(layer.style, layer.opacity, layer.pattern);
+
+            if (layer.type === 'function') {
+                layer.funcZ = createFunction(layer.equation, ['x', 'y', 't']);
+                if (!layer.funcZ) {
+                    showError('Failed to compile equation');
+                    layer.funcZ = (x, y, t) => 0;
+                }
+                layer.geometry = new THREE.PlaneGeometry(layer.rangeX*2, layer.rangeY*2, segments, segments).rotateX(-Math.PI/2);
+            } else {
+                layer.funcParam = {
+                    x: createFunction(layer.pX, ['u', 'v', 't']),
+                    y: createFunction(layer.pY, ['u', 'v', 't']),
+                    z: createFunction(layer.pZ, ['u', 'v', 't'])
+                };
+                if (!layer.funcParam.x || !layer.funcParam.y || !layer.funcParam.z) {
+                    showError('Failed to compile parametric equations');
+                }
+                layer.geometry = new ParametricGeometry((u, v, tgt) => {
+                    const uu = layer.uMin + u*(layer.uMax-layer.uMin);
+                    const vv = layer.vMin + v*(layer.vMax-layer.vMin);
+                    try {
+                        // Vertical Height (Three Y) is mapped from User Z
+                        tgt.set(
+                            layer.funcParam.x ? layer.funcParam.x(uu,vv,0,userVariables) : 0,
+                            layer.funcParam.z ? layer.funcParam.z(uu,vv,0,userVariables) : 0,
+                            layer.funcParam.y ? layer.funcParam.y(uu,vv,0,userVariables) : 0
+                        );
+                    } catch { tgt.set(0,0,0); }
+                }, segments, segments);
+            }
+
+            const count = layer.geometry.attributes.position.count;
+            layer.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+            layer.geometry.setAttribute('visibility', new THREE.BufferAttribute(new Float32Array(count), 1));
+
+            const top = new THREE.Mesh(layer.geometry, mat);
+            layer.root.add(top);
+
+            if (layer.closedShape) {
+                const bot = new THREE.Mesh(layer.geometry, mat);
+                bot.scale.y = -1;
+                layer.root.add(bot);
+            }
+
+            layer.root.position.set(layer.posX, layer.posY, layer.posZ);
+            updateActiveLayerTransform();
+            scene.add(layer.root);
+            layer.dirty = true;
+            updateLayerGeometry(layer);
+        }
+
+        // FIXED: Differentiate Glass/Water/Plastic materials
+        function createMaterial(style, opacity, pattern) {
+            const usePattern = pattern !== 'none';
+            const baseOpts = { vertexColors: !usePattern, side: THREE.DoubleSide, transparent: true, opacity: parseFloat(opacity) };
+            if (usePattern) baseOpts.map = getPatternTexture(pattern);
+
+            let mat;
+
+            if (style === 'wireframe') {
+                mat = new THREE.MeshBasicMaterial({ wireframe: true, color: 0x888888, ...baseOpts });
+            } else if (style === 'glass') {
+                // Glass: highly transparent with refraction-like appearance
+                mat = new THREE.MeshPhysicalMaterial({
+                    ...baseOpts,
+                    transmission: 0.9,
+                    thickness: 0.5,
+                    roughness: 0.1,
+                    ior: 1.5,
+                    clearcoat: 1,
+                    clearcoatRoughness: 0.1,
+                    envMapIntensity: 1
+                });
+            } else if (style === 'water') {
+                // Water: blue tint, high shininess, reflective
+                mat = new THREE.MeshPhongMaterial({
+                    ...baseOpts,
+                    shininess: 100,
+                    specular: new THREE.Color(0x4488ff),
+                    reflectivity: 0.8
+                });
+            } else {
+                // Plastic: standard phong with moderate shine
+                mat = new THREE.MeshPhongMaterial({ ...baseOpts, shininess: 50 });
+            }
+
+            mat.onBeforeCompile = (s) => {
+                s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nattribute float visibility;varying float vVisibility;')
+                                              .replace('#include <begin_vertex>', '#include <begin_vertex>\nvVisibility = visibility;');
+                s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vVisibility;')
+                                                .replace('#include <alphatest_fragment>', '#include <alphatest_fragment>\nif (vVisibility < 0.5) discard;');
+            };
+            return mat;
+        }
+
+        // FIXED: Bricks pattern with beginPath
+        function getPatternTexture(type) {
+            if (textureCache.has(type)) return textureCache.get(type);
+            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,256,256);
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 8;
+
+            if (type === 'checker') {
+                ctx.fillStyle = '#ccc'; ctx.fillRect(0,0,128,128); ctx.fillRect(128,128,128,128);
+            } else if (type === 'grid') {
+                ctx.strokeRect(0,0,256,256);
+                ctx.beginPath();
+                ctx.moveTo(128, 0); ctx.lineTo(128, 256);
+                ctx.moveTo(0, 128); ctx.lineTo(256, 128);
+                ctx.stroke();
+            } else if (type === 'bricks') {
+                ctx.fillStyle = '#b44'; ctx.fillRect(0,0,256,256);
+                ctx.strokeStyle = '#eee'; ctx.lineWidth = 4;
+                ctx.beginPath(); // FIXED: was missing beginPath
+                for(let i=0; i<=4; i++){
+                    ctx.moveTo(0, i*64); ctx.lineTo(256, i*64);
+                }
+                for(let i=0; i<4; i++){
+                    for(let j=0; j<2; j++){
+                        let o = (i % 2) * 64;
+                        ctx.moveTo(j*128 + o, i*64);
+                        ctx.lineTo(j*128 + o, i*64 + 64);
+                    }
+                }
+                ctx.stroke();
+            } else if (type === 'ripples') {
+                for(let i=1; i<10; i++) { ctx.beginPath(); ctx.arc(128,128,i*20,0,6.28); ctx.stroke(); }
+            }
+
+            const tex = new THREE.CanvasTexture(canvas); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(4,4);
+            textureCache.set(type, tex);
+            return tex;
+        }
+
+        function updateLayerGeometry(layer) {
+            if (!layer.geometry) return;
+            const pos = layer.geometry.attributes.position;
+            const col = layer.geometry.attributes.color;
+            const vis = layer.geometry.attributes.visibility;
+            const t = layer.useEquationAnim ? time : 0;
+            const cL = new THREE.Color(layer.colorLow), cH = new THREE.Color(layer.colorHigh), tmp = new THREE.Color();
+            let min = Infinity, max = -Infinity;
+
+            for (let i = 0; i < pos.count; i++) {
+                let val = 0, visibility = 1.0;
+                if (layer.type === 'function') {
+                    try {
+                        val = layer.funcZ(pos.getX(i), pos.getZ(i), t, userVariables);
+                        if (!isFinite(val)) { val=0; visibility=0; }
+                    } catch { visibility=0; }
+                    pos.setY(i, val);
+                } else {
+                    const uv = layer.geometry.attributes.uv;
+                    const u = layer.uMin + uv.getX(i)*(layer.uMax-layer.uMin);
+                    const vv = layer.vMin + uv.getY(i)*(layer.vMax-layer.vMin);
+                    try {
+                        let x = layer.funcParam.x ? layer.funcParam.x(u, vv, t, userVariables) : 0;
+                        let y = layer.funcParam.y ? layer.funcParam.y(u, vv, t, userVariables) : 0;
+                        let z = layer.funcParam.z ? layer.funcParam.z(u, vv, t, userVariables) : 0;
+                        if (!isFinite(x) || !isFinite(y) || !isFinite(z)) visibility=0;
+                        pos.setXYZ(i, x, z, y);
+                        val = z;
+                    } catch { visibility=0; }
+                }
+                vis.setX(i, visibility);
+                if (visibility > 0.5) {
+                    if (val < min) min = val;
+                    if (val > max) max = val;
+                }
+            }
+
+            pos.needsUpdate = vis.needsUpdate = true;
+            layer.geometry.computeVertexNormals();
+
+            if (layer.pattern === 'none') {
+                for (let i = 0; i < pos.count; i++) {
+                    let h = pos.getY(i);
+                    tmp.lerpColors(cL, cH, (max !== min) ? Math.max(0, Math.min(1, (h - min) / (max - min))) : 0.5);
+                    col.setXYZ(i, tmp.r, tmp.g, tmp.b);
+                }
+            } else {
+                for (let i = 0; i < pos.count; i++) col.setXYZ(i, 1, 1, 1);
+            }
+            col.needsUpdate = true;
+        }
+
+        // FIXED: Read range X/Y from UI
+        
+        function parseScalarInput(raw, fallback) {
+            const text = (raw ?? '').toString().trim();
+            if (!text) return fallback;
+            if (/^[+-]?\d*\.?\d+(?:[eE][+-]?\d+)?$/.test(text)) {
+                const num = Number(text);
+                return Number.isFinite(num) ? num : fallback;
+            }
+            const fn = createFunction(text, []);
+            if (!fn) return fallback;
+            const value = fn(userVariables);
+            return Number.isFinite(value) ? value : fallback;
+        }
+
+function updateActiveLayer() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer) return;
+
+            layer.type = uiElements.modeFunction?.classList.contains('active') ? 'function' : 'parametric';
+            layer.equation = uiElements.eqZ?.value || '0';
+            layer.pX = uiElements.eqParamX?.value || 'u';
+            layer.pY = uiElements.eqParamY?.value || 'v';
+            layer.pZ = uiElements.eqParamZ?.value || '0';
+
+            // FIXED: Read range values from UI
+            layer.rangeX = parseScalarInput(uiElements.rangeX?.value, 10);
+            layer.rangeY = parseScalarInput(uiElements.rangeY?.value, 10);
+
+            layer.uMin = parseScalarInput(uiElements.uMin?.value, 0);
+            layer.uMax = parseScalarInput(uiElements.uMax?.value, 6.28);
+            layer.vMin = parseScalarInput(uiElements.vMin?.value, 0);
+            layer.vMax = parseScalarInput(uiElements.vMax?.value, 6.28);
+
+            layer.style = uiElements.style?.value || 'plastic';
+            layer.pattern = uiElements.pattern?.value || 'none';
+            layer.opacity = parseFloat(uiElements.opacity?.value) || 1;
+            layer.colorLow = uiElements.colorLow?.value || '#3b82f6';
+            layer.colorHigh = uiElements.colorHigh?.value || '#60a5fa';
+
+            layer.closedShape = uiElements.closedShape?.checked || false;
+            layer.useEquationAnim = uiElements.useEquationAnim?.checked || false;
+
+            // Clear any previous error
+            if (uiElements.error) uiElements.error.textContent = '';
+
+            buildLayerMesh(layer);
+        }
+
+        function updateActiveLayerMaterialOnly() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (layer?.root) {
+                layer.style = uiElements.style?.value || 'plastic';
+                layer.pattern = uiElements.pattern?.value || 'none';
+                layer.opacity = parseFloat(uiElements.opacity?.value) || 1;
+                const mat = createMaterial(layer.style, layer.opacity, layer.pattern);
+                layer.root.traverse(c => {
+                    if(c.isMesh) {
+                        if (c.material) c.material.dispose();
+                        c.material = mat;
+                    }
+                });
+                layer.dirty = true;
+            }
+        }
+
+        function handleMagicCommand() {
+            const input = document.getElementById('magic-input');
+            const q = input ? input.value.toLowerCase().trim() : '';
+            if (!q) return;
+
+            const m = shapeDatabase.find(s => s.keys.some(k => q.includes(k)));
+            if (m) {
+                addLayer({ ...m, name: m.keys[0].charAt(0).toUpperCase() + m.keys[0].slice(1) });
+            } else {
+                addLayer({ name: 'New Object' });
+            }
+            if (input) input.value = '';
+        }
+
+        function renderLayerList() {
+            if (!uiElements.layerList) return;
+            uiElements.layerList.innerHTML = '';
+            layers.forEach(l => {
+                const d = document.createElement('div');
+                d.className = `layer-item ${l.id === activeLayerId ? 'active' : ''}`;
+                d.onclick = () => setActiveLayer(l.id);
+                d.innerHTML = `<span class="layer-name">${l.name}</span><button class="layer-btn">×</button>`;
+                d.querySelector('button').onclick = (e) => { e.stopPropagation(); removeLayer(l.id); };
+                uiElements.layerList.appendChild(d);
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const speedInput = document.getElementById('anim-speed');
+            const s = speedInput ? parseFloat(speedInput.value) : 0.02;
+            if (isPlaying && s > 0) time += s;
+
+            layers.forEach(l => {
+                if ((isPlaying && s > 0 && l.useEquationAnim) || l.dirty) {
+                    updateLayerGeometry(l);
+                    l.dirty = false;
+                }
+                if (l.root && !isTransforming) {
+                    if (l.animMode === 'spin') l.root.rotation.y += 0.02;
+                    else if (l.animMode === 'bob') l.root.position.y = l.posY + Math.sin(time*2);
+                    else if (l.animMode === 'pulse') {
+                        const sc = 1 + Math.sin(time*5)*0.2;
+                        l.root.scale.set(l.scaleX*sc*(l.isFlippedX?-1:1), l.scaleY*sc*(l.isFlippedY?-1:1), l.scaleZ*sc*(l.isFlippedZ?-1:1));
+                    }
+                }
+            });
+
+            // FIXED: Auto-rotate now uses OrbitControls.autoRotate (set in init)
+            // The controls.update() call handles auto-rotation when enabled
+
+            if (controls) controls.update();
+            renderer.render(scene, camera);
+        }
+
+        init();
+    </script>
+</body>
+</html>

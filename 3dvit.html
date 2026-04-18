@@ -1,0 +1,3474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vitreous 3D | Grapher</title>
+
+    <!-- Google Fonts: DM Serif Text -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Text:ital@0;1&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* Default Dark Mode Variables */
+            --bg-color: #0f172a;
+            --bg-gradient: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+            --panel-bg: rgba(30, 41, 59, 0.75);
+            --text-color: #f8fafc;
+            --text-muted: #cbd5e1;
+            --accent-color: #3b82f6;
+            --border-color: rgba(255, 255, 255, 0.15);
+            --input-bg: rgba(15, 23, 42, 0.6);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            --section-bg: rgba(255, 255, 255, 0.03);
+            --input-border: rgba(255, 255, 255, 0.1);
+        }
+
+        /* Light Mode Overrides */
+        body.light-mode {
+            --bg-color: #f1f5f9;
+            --bg-gradient: radial-gradient(circle at 50% 50%, #f8fafc 0%, #e2e8f0 100%);
+            --panel-bg: rgba(255, 255, 255, 0.75);
+            --text-color: #1e293b;
+            --text-muted: #64748b;
+            --accent-color: #2563eb;
+            --border-color: rgba(0, 0, 0, 0.1);
+            --input-bg: rgba(255, 255, 255, 0.6);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+            --section-bg: rgba(0, 0, 0, 0.03);
+            --input-border: rgba(0, 0, 0, 0.15);
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'DM Serif Text', serif;
+            background-color: var(--bg-color);
+            background: var(--bg-gradient);
+            color: var(--text-color);
+            letter-spacing: 0.02em;
+            transition: background 0.5s ease;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 0;
+        }
+
+        /* Glass Panel */
+        #ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 400px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 0;
+            border-radius: 16px;
+            box-shadow: var(--glass-shadow);
+            border: 1px solid var(--border-color);
+            max-height: 90vh;
+            overflow-y: auto;
+            transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), background 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+        }
+
+        #ui-panel.minimized {
+            transform: translateX(calc(-100% - 40px));
+        }
+
+        #ui-panel::-webkit-scrollbar { width: 6px; }
+        #ui-panel::-webkit-scrollbar-track { background: transparent; }
+        #ui-panel::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.3); border-radius: 3px; }
+
+        .panel-content {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        h1 { margin: 0; }
+        .app-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-color);
+            letter-spacing: 0.02em;
+            line-height: 1.1;
+            margin: 0 8px 0 0;
+        }
+        .brand-icon { display: flex; align-items: center; }
+        .brand-text { display: flex; flex-direction: column; gap: 2px; }
+        .brand-name { font-size: 1.15rem; font-weight: 400; }
+        .brand-credit { font-size: 0.7rem; font-weight: 400; opacity: 0.7; }
+
+        .header-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .header-title { width: 100%; }
+
+        .settings-group {
+            background: var(--section-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 5px;
+        }
+
+        .group-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        /* Layer List */
+        .layer-manager {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+
+        .layer-list {
+            max-height: 140px;
+            overflow-y: auto;
+        }
+
+        .layer-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+            color: var(--text-color);
+            opacity: 0.8;
+        }
+
+        .layer-item:hover { background: rgba(125,125,125,0.1); opacity: 1; }
+        .layer-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            border-left: 3px solid var(--accent-color);
+            padding-left: 11px;
+            opacity: 1;
+            font-weight: 600;
+        }
+
+        .layer-name { flex-grow: 1; overflow: hidden; text-overflow: ellipsis; }
+
+        .layer-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 1.2rem;
+        }
+        .layer-btn:hover { color: #fca5a5; }
+
+        #add-layer-btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 0.9rem;
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-color);
+            border: none;
+            border-top: 1px solid var(--border-color);
+            font-family: 'DM Serif Text', serif;
+            cursor: pointer;
+        }
+        #add-layer-btn:hover { background: rgba(59, 130, 246, 0.2); }
+
+        /* Controls */
+        .control-group { margin-bottom: 12px; }
+        label { display: block; margin-bottom: 6px; font-size: 0.85rem; color: var(--text-muted); }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            color: var(--text-color);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-family: 'Menlo', 'Monaco', monospace;
+            box-sizing: border-box;
+            font-size: 0.85rem;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--accent-color); }
+
+        input[type="color"] {
+            width: 100%;
+            height: 36px;
+            padding: 4px;
+            background: var(--input-bg);
+            border: 1px solid var(--input-border);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent-color);
+            height: 6px;
+            background: rgba(125,125,125,0.2);
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .row { display: flex; gap: 12px; }
+        .three-col { display: flex; gap: 8px; }
+        .three-col > div, .row > div { flex: 1; }
+
+        button {
+            width: 100%;
+            background: rgba(59, 130, 246, 0.8);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: 'DM Serif Text', serif;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+        button:hover { background: var(--accent-color); transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+
+        button.secondary-btn {
+            background: rgba(125,125,125,0.1);
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            border-color: var(--border-color);
+        }
+        button.secondary-btn:hover { background: rgba(125,125,125,0.2); color: var(--text-color); }
+
+        .tool-bar {
+            display: flex; gap: 6px; margin-bottom: 12px; background: var(--input-bg); padding: 4px; border-radius: 8px; border: 1px solid var(--border-color);
+        }
+        button.tool-btn { background: transparent; border: none; padding: 6px; font-size: 0.9rem; color: var(--text-muted); border-radius: 6px; cursor: pointer; }
+        button.tool-btn:hover { background: rgba(125,125,125,0.1); }
+        button.tool-btn.selected { background: var(--accent-color); color: white; }
+
+        .type-toggle { display: flex; background: var(--input-bg); border-radius: 8px; padding: 4px; margin-bottom: 16px; border: 1px solid var(--border-color); }
+        .type-toggle button { background: transparent; padding: 8px; font-size: 0.9rem; flex: 1; border-radius: 6px; border: none; color: var(--text-muted); cursor: pointer; }
+        .type-toggle button.active { background: var(--accent-color); color: white; }
+
+        /* Panel toggle button visibility */
+        #toggle-panel-btn {
+            position: absolute; top: 20px; left: 20px; z-index: 2000; background: var(--panel-bg); backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color); color: var(--text-color); width: 44px; height: 44px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+        }
+        #toggle-panel-btn.visible { opacity: 1; pointer-events: auto; }
+
+        .icon-btn { background: transparent; border: 1px solid var(--border-color); color: var(--text-muted); min-width: 58px; min-height: 52px; padding: 6px 6px 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 8px; transition: all 0.2s; cursor: pointer; position: relative; }
+        .icon-btn:hover { background: rgba(125,125,125,0.15); color: var(--text-color); }
+        .icon-btn svg { width: 18px; height: 18px; }
+        .icon-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1; color: var(--text-muted); }
+        .icon-glyph { font-size: 1rem; line-height: 1; }
+        .icon-btn:hover .icon-label { color: var(--text-color); }
+
+        #learn-btn.learn-highlight {
+            border-color: var(--accent-color);
+            color: var(--text-color);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35), 0 0 16px rgba(59, 130, 246, 0.45);
+            animation: learnPulse 1.6s ease-in-out infinite;
+        }
+        #learn-btn.learn-highlight .icon-label { color: var(--text-color); font-weight: 600; }
+        @keyframes learnPulse { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+
+        #error-msg { color: #f87171; font-size: 0.9rem; margin-top: 6px; min-height: 1.2em; }
+
+        .checkbox-group { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+        .checkbox-group input { width: 18px; height: 18px; cursor: pointer; }
+        .checkbox-group label { margin: 0; cursor: pointer; color: var(--text-color); }
+
+        #loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; display: flex; justify-content: center; align-items: center; z-index: 9999; transition: opacity 0.5s;
+        }
+        .spinner { width: 50px; height: 50px; border: 4px solid rgba(59, 130, 246, 0.3); border-top: 4px solid var(--accent-color); border-radius: 50%; animation: spin 1s infinite linear; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .magic-box { background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.2); margin-bottom: 12px; }
+        .magic-input-group { display: flex; gap: 8px; }
+        .shape-finder-result { margin-top: 8px; padding: 8px; border: 1px dashed var(--border-color); border-radius: 10px; font-size: 0.75rem; color: var(--text-muted); background: rgba(0,0,0,0.08); line-height: 1.4; }
+        .shape-finder-result strong { color: var(--text-color); }
+        .shape-finder-result code { color: var(--text-color); background: rgba(15,23,42,0.5); padding: 2px 4px; border-radius: 4px; font-size: 0.7rem; }
+        .shape-finder-note { margin-top: 6px; font-size: 0.7rem; color: var(--text-muted); }
+        .equation-helper { margin-top: 10px; padding: 10px; border-radius: 10px; background: rgba(0,0,0,0.06); border: 1px solid var(--border-color); }
+        .equation-helper-title { font-size: 0.75rem; font-weight: 700; color: var(--accent-color); margin-bottom: 6px; }
+        .equation-chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+        .eq-chip { border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); padding: 4px 8px; border-radius: 999px; font-size: 0.7rem; cursor: pointer; }
+        .eq-chip:hover { border-color: var(--accent-color); color: var(--text-color); }
+        .equation-status { font-size: 0.7rem; color: var(--text-muted); min-height: 1em; }
+        #magic-btn { width: auto; padding: 8px 16px; background: var(--accent-color); }
+
+        .anim-controls { display: flex; gap: 12px; align-items: center; }
+        #play-btn { width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; display: flex; justify-content: center; align-items: center; padding: 0; cursor: pointer; }
+
+        .hidden-empty-state { display: none; color: var(--text-muted); text-align: center; padding: 30px; border: 2px dashed var(--border-color); border-radius: 12px; }
+        .param-input-group { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .param-label { width: 16px; color: var(--accent-color); font-weight: 800; font-family: 'Menlo', monospace; text-align: center; }
+
+        .var-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; background: rgba(125,125,125,0.05); padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); }
+        .var-label { font-family: 'Menlo', monospace; font-weight: bold; color: var(--accent-color); width: 15px;}
+        .var-val { width: 50px !important; padding: 4px !important; text-align: center; }
+
+        .scale-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+
+        /* Preset Browser Styles */
+        .preset-browser { margin-top: 8px; }
+        .preset-search {
+            width: 100%; margin-bottom: 8px; padding: 8px 12px;
+            background: var(--input-bg); border: 1px solid var(--input-border);
+            border-radius: 8px; color: var(--text-color); font-size: 0.85rem;
+            box-sizing: border-box;
+        }
+        .preset-search::placeholder { color: var(--text-muted); }
+        .preset-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+        .preset-tab {
+            padding: 4px 8px; font-size: 0.7rem; background: var(--input-bg); border: 1px solid var(--border-color);
+            border-radius: 12px; cursor: pointer; color: var(--text-muted); transition: all 0.2s;
+        }
+        .preset-tab:hover { background: rgba(59, 130, 246, 0.2); }
+        .preset-tab.active { background: var(--accent-color); color: white; border-color: var(--accent-color); }
+        .preset-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; max-height: 200px;
+            overflow-y: auto; padding: 4px; background: var(--input-bg); border-radius: 8px; border: 1px solid var(--border-color);
+        }
+        .preset-item {
+            display: flex; flex-direction: column; align-items: center; padding: 6px 4px;
+            background: rgba(255,255,255,0.03); border: 1px solid transparent; border-radius: 6px;
+            cursor: pointer; transition: all 0.2s; text-align: center;
+        }
+        .preset-item:hover { background: rgba(59, 130, 246, 0.15); border-color: var(--accent-color); }
+        .preset-icon { font-size: 1.4rem; margin-bottom: 2px; }
+        .preset-name { font-size: 0.65rem; color: var(--text-muted); line-height: 1.1; word-break: break-word; }
+        .preset-grid::-webkit-scrollbar { width: 4px; }
+        .preset-grid::-webkit-scrollbar-thumb { background: rgba(150,150,150,0.3); border-radius: 2px; }
+        .preset-count { font-size: 0.7rem; color: var(--text-muted); margin-left: auto; }
+            .tutorial-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; display: flex; align-items: center; justify-content: center; }
+        .tutorial-content { background: var(--panel-bg); border-radius: 16px; padding: 24px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; }
+        .tutorial-close { position: absolute; top: 12px; right: 12px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted); }
+        .tutorial-content h2 { margin: 0 0 20px 0; color: var(--text-color); }
+        .tutorial-menu { display: flex; flex-direction: column; gap: 12px; }
+        .tutorial-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s; }
+        .tutorial-item:hover { border-color: var(--accent-color); transform: translateX(4px); }
+        .lesson-icon { width: 32px; height: 32px; background: var(--accent-color); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; flex-shrink: 0; }
+        .lesson-text { color: var(--text-color); }
+        .lesson-text strong { display: block; margin-bottom: 2px; }
+        .tutorial-step { padding: 16px 0; line-height: 1.6; color: var(--text-color); }
+        .tutorial-step h3 { margin: 0 0 12px 0; color: var(--accent-color); }
+        .tutorial-step code { background: var(--input-bg); padding: 2px 6px; border-radius: 4px; font-family: monospace; }
+        .tutorial-step .tip { background: rgba(99, 102, 241, 0.1); border-left: 3px solid var(--accent-color); padding: 8px 12px; margin: 12px 0; border-radius: 0 4px 4px 0; }
+        .tutorial-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-color); }
+        .tutorial-nav button { padding: 8px 16px; background: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer; }
+        .tutorial-nav button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .highlight-element { animation: highlightPulse 1.5s ease-in-out infinite; box-shadow: 0 0 0 3px var(--accent-color), 0 0 20px var(--accent-color) !important; }
+        @keyframes highlightPulse { 0%, 100% { box-shadow: 0 0 0 3px var(--accent-color), 0 0 20px var(--accent-color); } 50% { box-shadow: 0 0 0 5px var(--accent-color), 0 0 30px var(--accent-color); } }
+
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="loader"><div class="spinner"></div></div>
+
+    <div id="tutorial-modal" class="tutorial-modal" style="display:none">
+        <div class="tutorial-content">
+            <button class="tutorial-close" id="tutorial-close">&times;</button>
+            <h2 id="tutorial-title">Tutorials & Tips</h2>
+            <div id="tutorial-body">
+                <div class="tutorial-menu">
+                    <button class="tutorial-item" data-lesson="1">
+                        <span class="lesson-icon">1</span>
+                        <span class="lesson-text"><strong>Your First Surface</strong><br>Basic controls and navigation</span>
+                    </button>
+                    <button class="tutorial-item" data-lesson="2">
+                        <span class="lesson-icon">2</span>
+                        <span class="lesson-text"><strong>Playing with Variables</strong><br>Using a, b, c sliders</span>
+                    </button>
+                    <button class="tutorial-item" data-lesson="3">
+                        <span class="lesson-icon">3</span>
+                        <span class="lesson-text"><strong>Parametric Magic</strong><br>Understanding u, v equations</span>
+                    </button>
+                    <button class="tutorial-item" data-lesson="4">
+                        <span class="lesson-icon">4</span>
+                        <span class="lesson-text"><strong>Animation Tricks</strong><br>Using the time variable t</span>
+                    </button>
+                    <button class="tutorial-item" data-lesson="5">
+                        <span class="lesson-icon">5</span>
+                        <span class="lesson-text"><strong>Materials & Effects</strong><br>Making surfaces beautiful</span>
+                    </button>
+                    <button class="tutorial-item" data-lesson="6">
+                        <span class="lesson-icon">6</span>
+                        <span class="lesson-text"><strong>Finding Equations</strong><br>Search tips for Vitreous 3D</span>
+                    </button>
+                    <button class="tutorial-item" data-lesson="7">
+                        <span class="lesson-icon">7</span>
+                        <span class="lesson-text"><strong>Equation Builder</strong><br>Templates for function and parametric</span>
+                    </button>
+                </div>
+            </div>
+            <div class="tutorial-nav" id="tutorial-nav" style="display:none">
+                <button id="tutorial-prev">&larr; Previous</button>
+                <span id="tutorial-step">Step 1/5</span>
+                <button id="tutorial-next">Next &rarr;</button>
+            </div>
+        </div>
+    </div>
+
+    <button id="toggle-panel-btn">&#x2630;</button>
+
+    <div id="ui-panel">
+        <div class="panel-content">
+            <div class="panel-header">
+                <div class="header-controls">
+                    <h1 class="app-title header-title">
+                        <span class="brand-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                        </span>
+                        <span class="brand-text">
+                            <span class="brand-name">Vitreous 3D</span>
+                            <span class="brand-credit">by Najia Ahmad</span>
+                        </span>
+                    </h1>
+                    <button class="icon-btn" id="save-btn" title="Save Scene">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        <span class="icon-label">Save</span>
+                    </button>
+                    <button class="icon-btn" id="load-btn" title="Load Scene">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        <span class="icon-label">Load</span>
+                    </button>
+                    <button class="icon-btn" id="share-btn" title="Share URL">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                        <span class="icon-label">Share</span>
+                    </button>
+                    <input type="file" id="load-file" accept=".vit3d,.json" style="display:none">
+                    <button class="icon-btn" id="gif-btn" title="Record GIF">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/></svg>
+                        <span class="icon-label">GIF</span>
+                    </button>
+                    <button class="icon-btn" id="screenshot-btn" title="Take Screenshot">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                        <span class="icon-label">Shot</span>
+                    </button>
+                    <button class="icon-btn learn-highlight" id="learn-btn" title="Tutorials & Tips">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                        <span class="icon-label">Tutorials & Tips</span>
+                    </button>
+                    <button class="icon-btn" id="theme-btn" title="Toggle Light/Dark Mode">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                        <span class="icon-label">Theme</span>
+                    </button>
+                    <button class="icon-btn" id="hide-panel-btn">
+                        <span class="icon-glyph">&times;</span>
+                        <span class="icon-label">Hide</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="layer-manager">
+                <div id="layer-list" class="layer-list"></div>
+                <button id="add-layer-btn">+ Add Object</button>
+            </div>
+
+            <div id="empty-state" class="hidden-empty-state">No layers selected.</div>
+
+            <!-- Preset Browser Section -->
+            <div class="settings-group">
+                <div class="group-title">Shape Library <span class="preset-count" id="preset-count">50+ shapes</span></div>
+                <div class="preset-browser">
+                    <input type="text" class="preset-search" id="preset-search" placeholder="Search shapes...">
+                    <div class="preset-tabs" id="preset-tabs"></div>
+                    <div class="preset-grid" id="preset-grid"></div>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <div class="group-title">Shape Finder</div>
+                <div class="magic-box">
+                    <label style="margin-bottom:6px; display:block; font-size:0.75rem; color:var(--accent-color); font-weight:700;">Equation Database</label>
+                    <div class="magic-input-group">
+                        <input type="text" id="shape-finder-input" placeholder="e.g. 'boy surface', 'klein bottle', 'torus'">
+                        <button id="shape-finder-btn">Find</button>
+                    </div>
+                    <div class="shape-finder-result" id="shape-finder-result">Type a shape name to fetch a working equation from the built-in database.</div>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <div class="group-title">Variables</div>
+                <div id="variables-container"></div>
+            </div>
+
+            <div id="layer-controls" class="settings-group">
+                <div class="group-title">Object Properties</div>
+                <div class="type-toggle">
+                    <button id="mode-function" class="active">Function</button>
+                    <button id="mode-parametric">Parametric</button>
+                    <button id="mode-curve">Curve</button>
+                </div>
+
+                <div id="ui-function-mode">
+                    <div class="control-group">
+                        <label>Equation z =</label>
+                        <input type="text" id="eq-z" spellcheck="false" placeholder="sin(a * x)" list="equation-suggestions">
+                    </div>
+                    <div class="row">
+                         <div class="control-group">
+                            <label>X Range &plusmn;</label>
+                            <input type="text" id="range-x" value="10" inputmode="decimal">
+                        </div>
+                         <div class="control-group">
+                            <label>Y Range &plusmn;</label>
+                            <input type="text" id="range-y" value="10" inputmode="decimal">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ui-parametric-mode" style="display: none;">
+                    <div class="control-group">
+                        <div class="param-input-group"><span class="param-label">x</span><input type="text" id="eq-param-x" spellcheck="false" placeholder="(4 + 1.5 * cos(v)) * cos(u)" list="equation-suggestions"></div>
+                        <div class="param-input-group"><span class="param-label">y</span><input type="text" id="eq-param-y" spellcheck="false" placeholder="(4 + 1.5 * cos(v)) * sin(u)" list="equation-suggestions"></div>
+                        <div class="param-input-group"><span class="param-label">z</span><input type="text" id="eq-param-z" spellcheck="false" placeholder="1.5 * sin(v)" list="equation-suggestions"></div>
+                    </div>
+                    <div class="row">
+                        <div class="control-group"><label>U Range</label><div class="row"><input type="text" id="u-min" value="0" inputmode="decimal"><input type="text" id="u-max" value="6.28" inputmode="decimal"></div></div>
+                        <div class="control-group"><label>V Range</label><div class="row"><input type="text" id="v-min" value="0" inputmode="decimal"><input type="text" id="v-max" value="6.28" inputmode="decimal"></div></div>
+                    </div>
+                </div>
+
+                <div id="ui-curve-mode" style="display: none;">
+                    <div class="control-group">
+                        <div class="param-input-group"><span class="param-label">x(u)</span><input type="text" id="eq-curve-x" spellcheck="false" placeholder="cos(u)" list="equation-suggestions"></div>
+                        <div class="param-input-group"><span class="param-label">y(u)</span><input type="text" id="eq-curve-y" spellcheck="false" placeholder="sin(u)" list="equation-suggestions"></div>
+                        <div class="param-input-group"><span class="param-label">z(u)</span><input type="text" id="eq-curve-z" spellcheck="false" placeholder="u/6" list="equation-suggestions"></div>
+                    </div>
+                    <div class="row">
+                        <div class="control-group"><label>U Range</label><div class="row"><input type="text" id="curve-u-min" value="0" inputmode="decimal"><input type="text" id="curve-u-max" value="6.28" inputmode="decimal"></div></div>
+                        <div class="control-group"><label>Segments</label><input type="number" id="curve-segments" min="20" max="1000" value="200"></div>
+                        <div class="control-group"><label>Radius</label><input type="number" id="curve-radius" min="0" max="1" step="0.01" value="0.05"></div>
+                    </div>
+                    <div class="checkbox-group"><input type="checkbox" id="curve-closed"><label for="curve-closed">Closed Curve</label></div>
+                </div>
+
+                <div class="equation-helper">
+                    <div class="equation-helper-title">Equation Helper</div>
+                    <div class="equation-chip-row">
+                        <button class="eq-chip" data-insert="sin()">sin()</button>
+                        <button class="eq-chip" data-insert="cos()">cos()</button>
+                        <button class="eq-chip" data-insert="tan()">tan()</button>
+                        <button class="eq-chip" data-insert="sqrt()">sqrt()</button>
+                        <button class="eq-chip" data-insert="abs()">abs()</button>
+                        <button class="eq-chip" data-insert="exp()">exp()</button>
+                        <button class="eq-chip" data-insert="log()">log()</button>
+                    </div>
+                    <div class="equation-chip-row">
+                        <button class="eq-chip" data-insert="pi">pi</button>
+                        <button class="eq-chip" data-insert="2*pi">2*pi</button>
+                        <button class="eq-chip" data-insert="tau">tau</button>
+                        <button class="eq-chip" data-insert="phi">phi</button>
+                        <button class="eq-chip" data-insert="a">a</button>
+                        <button class="eq-chip" data-insert="b">b</button>
+                        <button class="eq-chip" data-insert="c">c</button>
+                        <button class="eq-chip" data-insert="t">t</button>
+                    </div>
+                    <div class="equation-status" id="equation-status">Click a field above, then use the chips to insert helpers.</div>
+                </div>
+
+                <datalist id="equation-suggestions">
+                    <option value="sin(x)">
+                    <option value="cos(x)">
+                    <option value="tan(x)">
+                    <option value="sqrt(x)">
+                    <option value="abs(x)">
+                    <option value="exp(x)">
+                    <option value="log(x)">
+                    <option value="pi">
+                    <option value="2*pi">
+                    <option value="x^2 + y^2">
+                    <option value="sin(x)*cos(y)">
+                    <option value="a*sin(b*x)">
+                    <option value="sin(u)*cos(v)">
+                    <option value="a*sin(v)*cos(u)">
+                </datalist>
+
+                <div id="error-msg"></div>
+                <div class="checkbox-group"><input type="checkbox" id="use-equation-anim" checked><label for="use-equation-anim">Animate (t)</label></div>
+                <div class="checkbox-group"><input type="checkbox" id="closed-shape"><label for="closed-shape">Closed (Mirror Z)</label></div>
+
+                <div class="control-group" style="border-top: 1px solid var(--border-color); padding-top: 12px;">
+                    <label>Cursor Gizmo</label>
+                    <div class="tool-bar">
+                        <button class="tool-btn selected" id="tool-translate">Move</button>
+                        <button class="tool-btn" id="tool-rotate">Rotate</button>
+                        <button class="tool-btn" id="tool-scale">Scale</button>
+                        <button class="tool-btn" id="tool-none">None</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Position</label>
+                    <div class="three-col">
+                        <input type="number" id="pos-x" step="0.5"><input type="number" id="pos-y" step="0.5"><input type="number" id="pos-z" step="0.5">
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Scale Magnitude</label>
+                    <div class="scale-row"><span class="var-label">X</span><input type="range" id="slider-scale-x" min="0.1" max="5" step="0.1"><input type="number" id="scale-x" step="0.1"></div>
+                    <div class="scale-row"><span class="var-label">Y</span><input type="range" id="slider-scale-y" min="0.1" max="5" step="0.1"><input type="number" id="scale-y" step="0.1"></div>
+                    <div class="scale-row"><span class="var-label">Z</span><input type="range" id="slider-scale-z" min="0.1" max="5" step="0.1"><input type="number" id="scale-z" step="0.1"></div>
+                </div>
+
+                <div class="control-group">
+                    <label>Quick Mirror</label>
+                    <div class="row">
+                        <button id="flip-x" class="tool-btn" style="border: 1px solid var(--border-color);">Flip X</button>
+                        <button id="flip-y" class="tool-btn" style="border: 1px solid var(--border-color);">Flip Y</button>
+                        <button id="flip-z" class="tool-btn" style="border: 1px solid var(--border-color);">Flip Z</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Appearance</label>
+                    <div class="row">
+                        <select id="material-style">
+                            <optgroup label="Basic">
+                                <option value="plastic">Plastic</option>
+                                <option value="water">Water</option>
+                                <option value="glass">Glass</option>
+                                <option value="wireframe">Wireframe</option>
+                                <option value="matte">Matte</option>
+                                <option value="ceramic">Ceramic</option>
+                                <option value="rubber">Rubber</option>
+                                <option value="carbon">Carbon</option>
+                            </optgroup>
+                            <optgroup label="PBR Materials">
+                                <option value="chrome">Chrome</option>
+                                <option value="gold">Gold</option>
+                                <option value="copper">Copper</option>
+                                <option value="marble">Marble</option>
+                                <option value="obsidian">Obsidian</option>
+                                <option value="pearl">Pearl</option>
+                                <option value="ice">Ice</option>
+                                <option value="neon">Neon</option>
+                                <option value="holographic">Holographic</option>
+                                <option value="lava">Lava</option>
+                            </optgroup>
+                        </select>
+                        <select id="pattern-style"><option value="none">No Texture</option><option value="checker">Checker</option><option value="grid">Grid</option><option value="bricks">Bricks</option><option value="ripples">Ripples</option></select>
+                    </div>
+                    <div class="row" style="margin-top: 8px;"><label>Opacity</label><input type="range" id="opacity-slider" min="0.1" max="1" step="0.05" value="1"></div>
+                </div>
+
+                <div class="row">
+                    <div class="control-group"><label>Low Color</label><input type="color" id="color-low" value="#3b82f6"></div>
+                    <div class="control-group"><label>High Color</label><input type="color" id="color-high" value="#60a5fa"></div>
+                </div>
+                <button id="update-btn">Apply Equations</button>
+            </div>
+
+            <div class="settings-group">
+                <div class="group-title">Global Scene</div>
+                <div class="magic-box">
+                    <label style="margin-bottom:6px; display:block; font-size:0.75rem; color:var(--accent-color); font-weight:700;">Magic Generator</label>
+                    <div class="magic-input-group"><input type="text" id="magic-input" placeholder="e.g. 'donut', 'sphere', 'wave'"><button id="magic-btn">Add</button></div>
+                </div>
+
+                <div class="control-group">
+                    <label>Lighting Orientation</label>
+                    <div class="row">
+                        <div style="flex:1"><label>Angle</label><input type="range" id="light-angle" min="0" max="360" value="45"></div>
+                        <div style="flex:1"><label>Height</label><input type="range" id="light-elevation" min="0" max="90" value="45"></div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <label>Environment</label>
+                    <div class="row">
+                        <select id="environment-select" style="flex:1">
+                            <option value="none">None</option>
+                            <option value="studio" selected>Studio</option>
+                            <option value="studio-soft">Studio Soft</option>
+                            <option value="sunset">Sunset</option>
+                            <option value="dawn">Dawn</option>
+                            <option value="night">Night</option>
+                            <option value="forest">Forest</option>
+                            <option value="abstract">Abstract</option>
+                            <option value="aurora">Aurora</option>
+                            <option value="space">Space</option>
+                        </select>
+                    </div>
+                    <div class="row" style="margin-top:6px">
+                        <div style="flex:1"><label>Intensity</label><input type="range" id="env-intensity" min="0" max="3" step="0.1" value="1"></div>
+                    </div>
+                    <div class="checkbox-group" style="margin-top:6px"><input type="checkbox" id="show-env-bg"><label for="show-env-bg">Show as Background</label></div>
+                </div>
+                <div class="control-group">
+                    <label>Post-Processing</label>
+                    <div class="checkbox-group"><input type="checkbox" id="fx-bloom"><label for="fx-bloom">Bloom (Glow)</label></div>
+                    <div class="row" id="bloom-controls" style="display:none;margin-top:6px">
+                        <div style="flex:1"><label>Strength</label><input type="range" id="bloom-strength" min="0" max="3" step="0.1" value="0.8"></div>
+                        <div style="flex:1"><label>Radius</label><input type="range" id="bloom-radius" min="0" max="2" step="0.1" value="0.4"></div>
+                    </div>
+                    <div class="checkbox-group"><input type="checkbox" id="fx-vignette"><label for="fx-vignette">Vignette</label></div>
+                    <div class="checkbox-group"><input type="checkbox" id="fx-chromatic"><label for="fx-chromatic">Chromatic Aberration</label></div>
+                    <div class="checkbox-group"><input type="checkbox" id="fx-grain"><label for="fx-grain">Film Grain</label></div>
+                </div>
+                <div class="anim-controls">
+                    <button id="play-btn" class="active">&#x23F8;</button>
+                    <div style="flex-grow: 1;"><label>Animation Speed</label><input type="range" id="anim-speed" min="0" max="0.1" step="0.001" value="0.02"></div>
+                
+                    <div style="flex-grow: 1; margin-left: 8px;">
+                        <label>Effect</label>
+                        <select id="anim-effect" style="width: 100%">
+                            <option value="none">None</option>
+                            <option value="spin">Spin</option>
+                            <option value="bob">Bob</option>
+                            <option value="pulse">Pulse</option>
+                            <option value="wave">Wave</option>
+                            <option value="orbit">Orbit Camera</option>
+                        </select>
+                    </div></div>
+                <div class="checkbox-group"><input type="checkbox" id="auto-rotate"><label for="auto-rotate">Auto Rotate Camera</label></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="canvas-container"></div>
+
+    <script type="module">
+        import * as THREE from 'three';
+
+        // Global variables for post-processing (moved to global scope)
+        let composer = null;
+        let renderPass = null, bloomPass = null, vignettePass = null, chromaticPass = null, grainPass = null, outputPass = null;
+        let useComposer = false;
+
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { TransformControls } from 'three/addons/controls/TransformControls.js';
+        import { ParametricGeometry } from 'three/addons/geometries/ParametricGeometry.js';        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+        const config = { bgColor: 0x0f172a };
+        let scene, camera, renderer, controls, transformControl, mainLight, gridHelper;
+        let time = 0, isPlaying = true, raycaster, mouse, isTransforming = false;
+        let animEffect = 'none', animStartTime = 0;
+        let currentTransformMode = 'translate';
+        let layers = [], nextLayerId = 1, activeLayerId = null;
+        let userVariables = { a: 1.0, b: 1.0, c: 1.0 };
+        let currentEnvIntensity = 1;
+
+        const textureCache = new Map();
+        let uiElements = {};
+        let currentCategory = 'all';
+
+        // ========== EXPANDED SHAPE DATABASE (50+ PRESETS) ==========
+        const shapeDatabase = [
+            // ===== CLASSIC (10) =====
+            { category: 'classic', icon: 'TO', keys: ['donut', 'torus'], name: 'Torus', type: 'parametric',
+              x: '(4 + 1.5 * cos(v)) * cos(u)', y: '(4 + 1.5 * cos(v)) * sin(u)', z: '1.5 * sin(v)',
+              uRange: [0, 6.28], vRange: [0, 6.28], cLow: '#8b4513', cHigh: '#cd853f' },
+            { category: 'classic', icon: 'SP', keys: ['sphere', 'ball', 'globe'], name: 'Sphere', type: 'parametric',
+              x: '4 * sin(u) * cos(v)', y: '4 * sin(u) * sin(v)', z: '4 * cos(u)',
+              uRange: [0, 3.14], vRange: [0, 6.28], cLow: '#004488', cHigh: '#4488ff' },
+            { category: 'classic', icon: 'CO', keys: ['cone', 'pyramid'], name: 'Cone', type: 'parametric',
+              x: '(3 - u) * cos(v)', y: '(3 - u) * sin(v)', z: 'u * 2',
+              uRange: [0, 3], vRange: [0, 6.28], cLow: '#884400', cHigh: '#ffaa44' },
+            { category: 'classic', icon: 'CY', keys: ['cylinder', 'tube', 'pipe'], name: 'Cylinder', type: 'parametric',
+              x: '3 * cos(v)', y: '3 * sin(v)', z: 'u - 3',
+              uRange: [0, 6], vRange: [0, 6.28], cLow: '#448844', cHigh: '#88ff88' },
+            { category: 'classic', icon: 'MU', keys: ['mobius', 'm\u00F6bius', 'twist'], name: 'M\u00F6bius Strip', type: 'parametric',
+              x: '(3 + u * cos(v/2)) * cos(v)', y: '(3 + u * cos(v/2)) * sin(v)', z: 'u * sin(v/2)',
+              uRange: [-1, 1], vRange: [0, 6.28], cLow: '#6b21a8', cHigh: '#c084fc' },
+            { category: 'classic', icon: 'KB', keys: ['klein', 'bottle'], name: 'Klein Bottle', type: 'parametric',
+              x: '(2 + cos(u/2) * sin(v) - sin(u/2) * sin(2*v)) * cos(u)',
+              y: '(2 + cos(u/2) * sin(v) - sin(u/2) * sin(2*v)) * sin(u)',
+              z: 'sin(u/2) * sin(v) + cos(u/2) * sin(2*v)',
+              uRange: [0, 6.28], vRange: [0, 6.28], cLow: '#be185d', cHigh: '#f472b6' },
+            { category: 'classic', icon: 'PA', keys: ['paraboloid', 'bowl', 'dish'], name: 'Paraboloid', type: 'function',
+              eq: '(x^2 + y^2) / 20', cLow: '#0369a1', cHigh: '#38bdf8' },
+            { category: 'classic', icon: 'EL', keys: ['ellipsoid', 'egg'], name: 'Ellipsoid', type: 'parametric',
+              x: '4 * sin(u) * cos(v)', y: '3 * sin(u) * sin(v)', z: '2 * cos(u)',
+              uRange: [0, 3.14], vRange: [0, 6.28], cLow: '#fcd34d', cHigh: '#fef3c7' },
+            { category: 'classic', icon: 'HY', keys: ['hyperboloid'], name: 'Hyperboloid', type: 'parametric',
+              x: '2 * cosh(u/3) * cos(v)', y: '2 * cosh(u/3) * sin(v)', z: '2 * sinh(u/3)',
+              uRange: [-3, 3], vRange: [0, 6.28], cLow: '#dc2626', cHigh: '#fca5a5' },
+            { category: 'classic', icon: 'PL', keys: ['plane', 'flat', 'surface'], name: 'Plane', type: 'function',
+              eq: '0', cLow: '#6b7280', cHigh: '#d1d5db' },
+
+            // ===== WAVES (10) =====
+            { category: 'waves', icon: 'RI', keys: ['wave', 'ripple', 'water'], name: 'Ripple', type: 'function',
+              eq: 'sin(sqrt(x^2 + y^2) - 3*t)', cLow: '#2244aa', cHigh: '#66aaff' },
+            { category: 'waves', icon: 'SF', keys: ['sinc', 'cardinal'], name: 'Sinc Function', type: 'function',
+              eq: '3 * sin(sqrt(x^2 + y^2)) / (sqrt(x^2 + y^2) + 0.1)', cLow: '#7c3aed', cHigh: '#c4b5fd' },
+            { category: 'waves', icon: 'SW', keys: ['standing', 'vibration'], name: 'Standing Wave', type: 'function',
+              eq: 'sin(x) * cos(y) * cos(t*3)', cLow: '#059669', cHigh: '#6ee7b7' },
+            { category: 'waves', icon: 'IN', keys: ['interference', 'cross'], name: 'Interference', type: 'function',
+              eq: 'sin(x - t*2) + sin(y - t*2)', cLow: '#0891b2', cHigh: '#67e8f9' },
+            { category: 'waves', icon: 'OW', keys: ['ocean', 'sea'], name: 'Ocean Waves', type: 'function',
+              eq: 'sin(x/2 - t) + 0.5*sin(x + y/2 - t*1.5) + 0.3*cos(2*x - t*2)', cLow: '#1e40af', cHigh: '#3b82f6' },
+            { category: 'waves', icon: 'DW', keys: ['damped', 'decay'], name: 'Damped Wave', type: 'function',
+              eq: 'exp(-0.1*sqrt(x^2+y^2)) * sin(sqrt(x^2+y^2) - t*3)', cLow: '#9333ea', cHigh: '#d8b4fe' },
+            { category: 'waves', icon: 'CW', keys: ['circular', 'ring'], name: 'Circular Wave', type: 'function',
+              eq: 'cos(sqrt(x^2 + y^2) * 2 - t*4)', cLow: '#0d9488', cHigh: '#5eead4' },
+            { category: 'waves', icon: 'SW', keys: ['square', 'step'], name: 'Square Wave', type: 'function',
+              eq: 'sign(sin(x)) * sign(sin(y))', cLow: '#f59e0b', cHigh: '#fcd34d' },
+            { category: 'waves', icon: 'HA', keys: ['harmonic', 'music'], name: 'Harmonics', type: 'function',
+              eq: 'sin(x)*cos(y) + 0.5*sin(2*x)*cos(2*y) + 0.25*sin(3*x)*cos(3*y)', cLow: '#ec4899', cHigh: '#f9a8d4' },
+            { category: 'waves', icon: 'GA', keys: ['gaussian', 'bell', 'bump'], name: 'Gaussian', type: 'function',
+              eq: '3 * exp(-(x^2 + y^2) / 20)', cLow: '#16a34a', cHigh: '#86efac' },
+
+            // ===== MINIMAL SURFACES (8) =====
+            { category: 'minimal', icon: 'ES', keys: ['enneper'], name: 'Enneper Surface', type: 'parametric',
+              x: 'u - u^3/3 + u*v^2', y: 'v - v^3/3 + v*u^2', z: 'u^2 - v^2',
+              uRange: [-2, 2], vRange: [-2, 2], cLow: '#3b82f6', cHigh: '#93c5fd' },
+            { category: 'minimal', icon: 'CA', keys: ['catenoid', 'funnel'], name: 'Catenoid', type: 'parametric',
+              x: '2 * cosh(v/2) * cos(u)', y: '2 * cosh(v/2) * sin(u)', z: 'v',
+              uRange: [0, 6.28], vRange: [-3, 3], cLow: '#f97316', cHigh: '#fdba74' },
+            { category: 'minimal', icon: 'HE', keys: ['helicoid', 'screw', 'spiral surface'], name: 'Helicoid', type: 'parametric',
+              x: 'v * cos(u)', y: 'v * sin(u)', z: 'u',
+              uRange: [0, 6.28], vRange: [-3, 3], cLow: '#8b5cf6', cHigh: '#c4b5fd' },
+            { category: 'minimal', icon: 'SS', keys: ['scherk'], name: 'Scherk Surface', type: 'function',
+              eq: 'log(cos(x/2)) - log(cos(y/2))', cLow: '#10b981', cHigh: '#6ee7b7' },
+            { category: 'minimal', icon: 'DS', keys: ['dini', 'pseudosphere'], name: 'Dini Surface', type: 'parametric',
+              x: 'cos(u) * sin(v)', y: 'sin(u) * sin(v)', z: 'cos(v) + log(tan(v/2)) + 0.2*u',
+              uRange: [0, 12.56], vRange: [0.1, 2], cLow: '#dc2626', cHigh: '#fca5a5' },
+            { category: 'minimal', icon: 'RS', keys: ['richmond'], name: 'Richmond Surface', type: 'parametric',
+              x: '-0.5*u + 0.5*u*cos(v)*cos(v)', y: '0.5*u*sin(v)*cos(v)', z: '0.5*u*sin(v)',
+              uRange: [-4, 4], vRange: [0, 6.28], cLow: '#0ea5e9', cHigh: '#7dd3fc' },
+            { category: 'minimal', icon: 'CS', keys: ['catalan'], name: 'Catalan Surface', type: 'parametric',
+              x: 'u - sin(u)*cosh(v)', y: '1 - cos(u)*cosh(v)', z: '4*sin(u/2)*sinh(v/2)',
+              uRange: [-3.14, 3.14], vRange: [-2, 2], cLow: '#a855f7', cHigh: '#d8b4fe' },
+            { category: 'minimal', icon: 'HS', keys: ['henneberg'], name: 'Henneberg Surface', type: 'parametric',
+              x: '2*cos(v)*sinh(u) - (2/3)*cos(3*v)*sinh(3*u)',
+              y: '2*sin(v)*sinh(u) + (2/3)*sin(3*v)*sinh(3*u)',
+              z: '2*cos(2*v)*cosh(2*u)',
+              uRange: [-1, 1], vRange: [0, 6.28], cLow: '#f43f5e', cHigh: '#fda4af' },
+
+            // ===== ALGEBRAIC (8) =====
+            { category: 'algebraic', icon: 'SA', keys: ['saddle', 'hyperbolic', 'pringle'], name: 'Saddle', type: 'function',
+              eq: 'x^2 - y^2', cLow: '#aa2244', cHigh: '#ff6688' },
+            { category: 'algebraic', icon: 'MS', keys: ['monkey', 'triple saddle'], name: 'Monkey Saddle', type: 'function',
+              eq: 'x^3 - 3*x*y^2', cLow: '#854d0e', cHigh: '#fcd34d' },
+            { category: 'algebraic', icon: 'CC', keys: ['crosscap', 'cross-cap'], name: 'Cross-Cap', type: 'parametric',
+              x: 'sin(u) * sin(2*v) / 2', y: 'sin(2*u) * cos(v)^2', z: 'cos(2*u) * cos(v)^2',
+              uRange: [0, 3.14], vRange: [0, 3.14], cLow: '#7c2d12', cHigh: '#fdba74' },
+            { category: 'algebraic', icon: 'BS', keys: ['boy', 'boys surface'], name: 'Boy Surface', type: 'parametric',
+              x: '(sqrt(2)*cos(v)^2*cos(2*u) + cos(u)*sin(2*v)) / (2 - sqrt(2)*sin(3*u)*sin(2*v))',
+              y: '(sqrt(2)*cos(v)^2*sin(2*u) - sin(u)*sin(2*v)) / (2 - sqrt(2)*sin(3*u)*sin(2*v))',
+              z: '3*cos(v)^2 / (2 - sqrt(2)*sin(3*u)*sin(2*v))',
+              uRange: [0, 3.14], vRange: [0, 3.14], cLow: '#0f766e', cHigh: '#5eead4' },
+            { category: 'algebraic', icon: 'RS', keys: ['roman', 'steiner'], name: 'Roman Surface', type: 'parametric',
+              x: 'sin(2*u) * cos(v)^2', y: 'sin(u) * sin(2*v)', z: 'cos(u) * sin(2*v)',
+              uRange: [0, 3.14], vRange: [0, 3.14], cLow: '#a16207', cHigh: '#fde047' },
+            { category: 'algebraic', icon: 'CS', keys: ['cayley', 'cubic'], name: 'Cayley Surface', type: 'function',
+              eq: 'x*y + y*x + x*y', cLow: '#7e22ce', cHigh: '#d8b4fe' },
+            { category: 'algebraic', icon: 'DC', keys: ['dupin', 'cyclide'], name: 'Dupin Cyclide', type: 'parametric',
+              x: '(3 + cos(v)) * cos(u) / (1 - 0.6*sin(u)*sin(v))',
+              y: '(3 + cos(v)) * sin(u) / (1 - 0.6*sin(u)*sin(v))',
+              z: 'sin(v) / (1 - 0.6*sin(u)*sin(v))',
+              uRange: [0, 6.28], vRange: [0, 6.28], cLow: '#c026d3', cHigh: '#f0abfc' },
+            { category: 'algebraic', icon: 'WU', keys: ['whitney', 'umbrella'], name: 'Whitney Umbrella', type: 'parametric',
+              x: 'u * v', y: 'u', z: 'v^2',
+              uRange: [-3, 3], vRange: [-3, 3], cLow: '#0284c7', cHigh: '#7dd3fc' },
+
+            // ===== SPIRALS (8) =====
+            { category: 'spirals', icon: 'HE', keys: ['helix', 'dna', 'spring'], name: 'Helix', type: 'parametric',
+              x: '3 * cos(u)', y: '3 * sin(u)', z: 'u / 2',
+              uRange: [0, 18.84], vRange: [0, 1], cLow: '#dc2626', cHigh: '#3b82f6' },
+            { category: 'spirals', icon: 'CS', keys: ['conical spiral', 'ice cream'], name: 'Conical Spiral', type: 'parametric',
+              x: 'u * cos(u) / 3', y: 'u * sin(u) / 3', z: 'u / 2',
+              uRange: [0, 18.84], vRange: [0, 1], cLow: '#f59e0b', cHigh: '#fcd34d' },
+            { category: 'spirals', icon: 'FS', keys: ['fermat', 'sunflower'], name: 'Fermat Spiral', type: 'parametric',
+              x: 'sqrt(u) * cos(u)', y: 'sqrt(u) * sin(u)', z: 'u / 10',
+              uRange: [0, 31.4], vRange: [0, 1], cLow: '#ca8a04', cHigh: '#fef08a' },
+            { category: 'spirals', icon: 'LS', keys: ['logarithmic', 'nautilus'], name: 'Log Spiral', type: 'parametric',
+              x: 'exp(0.1*u) * cos(u)', y: 'exp(0.1*u) * sin(u)', z: 'u / 5',
+              uRange: [0, 18.84], vRange: [0, 1], cLow: '#ea580c', cHigh: '#fdba74' },
+            { category: 'spirals', icon: 'TO', keys: ['tornado', 'vortex'], name: 'Tornado', type: 'parametric',
+              x: '(3 - u/3) * cos(u + v)', y: '(3 - u/3) * sin(u + v)', z: 'u',
+              uRange: [0, 9], vRange: [0, 6.28], cLow: '#475569', cHigh: '#94a3b8' },
+            { category: 'spirals', icon: 'ST', keys: ['spiral torus', 'twisted ring'], name: 'Spiral Torus', type: 'parametric',
+              x: '(4 + cos(3*u + v)) * cos(u)', y: '(4 + cos(3*u + v)) * sin(u)', z: 'sin(3*u + v)',
+              uRange: [0, 6.28], vRange: [0, 6.28], cLow: '#c026d3', cHigh: '#f0abfc' },
+            { category: 'spirals', icon: 'TK', keys: ['trefoil', 'knot'], name: 'Trefoil Knot', type: 'parametric',
+              x: 'sin(u) + 2*sin(2*u)', y: 'cos(u) - 2*cos(2*u)', z: '-sin(3*u)',
+              uRange: [0, 6.28], vRange: [0, 1], cLow: '#be123c', cHigh: '#fda4af' },
+            { category: 'spirals', icon: 'LI', keys: ['lissajous', 'figure8'], name: 'Lissajous', type: 'parametric',
+              x: '3 * sin(2*u + 0.5)', y: '3 * sin(3*u)', z: '3 * sin(u)',
+              uRange: [0, 6.28], vRange: [0, 1], cLow: '#4f46e5', cHigh: '#a5b4fc' },
+
+            // ===== FUN SHAPES (12) =====
+            { category: 'fun', icon: 'HE', keys: ['heart', 'love', 'valentine'], name: 'Heart', type: 'parametric',
+              x: '3 * sin(u)^3 * sin(v)',
+              y: '(2.6*cos(u) - cos(2*u) - 0.5*cos(3*u) - 0.25*cos(4*u)) * sin(v)',
+              z: '3 * sin(u)^3 * cos(v)',
+              uRange: [0, 3.14], vRange: [0, 6.28], cLow: '#dc2626', cHigh: '#f87171' },
+            { category: 'fun', icon: 'SE', keys: ['shell', 'seashell', 'conch'], name: 'Seashell', type: 'parametric',
+              x: '(1 + u/5) * cos(u) * (1 + cos(v))',
+              y: '(1 + u/5) * sin(u) * (1 + cos(v))',
+              z: 'u/3 + (1 + u/5) * sin(v)',
+              uRange: [0, 18.84], vRange: [0, 6.28], cLow: '#f97316', cHigh: '#fde68a' },
+            { category: 'fun', icon: 'RS', keys: ['rose', 'flower', 'petal'], name: 'Rose Surface', type: 'function',
+              eq: 'cos(3*atan2(y, x)) * exp(-0.05*(x^2 + y^2))', cLow: '#ec4899', cHigh: '#f9a8d4' },
+            { category: 'fun', icon: 'GA', keys: ['galaxy', 'spiral galaxy'], name: 'Galaxy', type: 'function',
+              eq: 'sin(atan2(y, x) * 3 + sqrt(x^2 + y^2) - t*2) * exp(-0.05*(x^2+y^2))',
+              cLow: '#1e1b4b', cHigh: '#818cf8' },
+            { category: 'fun', icon: 'ST', keys: ['star', 'starfish'], name: 'Starfish', type: 'function',
+              eq: 'cos(5*atan2(y, x)) * (1 + 0.3*sqrt(x^2+y^2))', cLow: '#ea580c', cHigh: '#fed7aa' },
+            { category: 'fun', icon: 'AP', keys: ['apple'], name: 'Apple', type: 'parametric',
+              x: 'cos(u) * (4 + 3.8*cos(v))', y: 'sin(u) * (4 + 3.8*cos(v))', z: '-2.5*sin(v) * (1 + cos(v))',
+              uRange: [0, 6.28], vRange: [-3.14, 3.14], cLow: '#dc2626', cHigh: '#22c55e' },
+            { category: 'fun', icon: 'VA', keys: ['vase', 'amphora', 'pot'], name: 'Vase', type: 'parametric',
+              x: '(2 + cos(v*3) + 0.5*cos(3*u)) * cos(u)',
+              y: '(2 + cos(v*3) + 0.5*cos(3*u)) * sin(u)',
+              z: 'v * 2',
+              uRange: [0, 6.28], vRange: [-1.5, 1.5], cLow: '#92400e', cHigh: '#d97706' },
+            { category: 'fun', icon: 'MU', keys: ['mushroom', 'toadstool'], name: 'Mushroom', type: 'parametric',
+              x: 'u * cos(v)', y: 'u * sin(v)', z: '2 * exp(-u^2/4) - u^2/10 + 1',
+              uRange: [0, 4], vRange: [0, 6.28], cLow: '#dc2626', cHigh: '#fef3c7' },
+            { category: 'fun', icon: 'HO', keys: ['horn', 'trumpet'], name: 'Horn', type: 'parametric',
+              x: '(2 + u * cos(v)) * sin(2*3.14*u)',
+              y: '(2 + u * cos(v)) * cos(2*3.14*u) + 2*u',
+              z: 'u * sin(v)',
+              uRange: [0, 1], vRange: [0, 6.28], cLow: '#b45309', cHigh: '#fcd34d' },
+            { category: 'fun', icon: 'PU', keys: ['pumpkin', 'halloween'], name: 'Pumpkin', type: 'parametric',
+              x: '(3 + 0.5*cos(8*v)) * cos(u) * sin(v)',
+              y: '(3 + 0.5*cos(8*v)) * sin(u) * sin(v)',
+              z: '(3 + 0.5*cos(8*v)) * cos(v)',
+              uRange: [0, 6.28], vRange: [0, 3.14], cLow: '#ea580c', cHigh: '#fdba74' },
+            { category: 'fun', icon: 'HI', keys: ['hibiscus', 'tropical'], name: 'Hibiscus', type: 'function',
+              eq: 'sin(6*atan2(y,x)) * sqrt(x^2+y^2) / 4', cLow: '#be185d', cHigh: '#fbcfe8' },
+            { category: 'fun', icon: 'DI', keys: ['diamond', 'gem', 'crystal'], name: 'Diamond', type: 'parametric',
+              x: 'cos(u) * sin(v) * (abs(sin(2*v)) + 0.5)',
+              y: 'sin(u) * sin(v) * (abs(sin(2*v)) + 0.5)',
+              z: 'cos(v) * 3',
+              uRange: [0, 6.28], vRange: [0, 3.14], cLow: '#0ea5e9', cHigh: '#e0f2fe' },
+
+            // ===== ANIMATED (6) =====
+            { category: 'animated', icon: 'PU', keys: ['pulse', 'beating'], name: 'Pulsing', type: 'function',
+              eq: 'sin(sqrt(x^2+y^2) - t*5) * (1 + 0.3*sin(t*3))', cLow: '#dc2626', cHigh: '#fecaca' },
+            { category: 'animated', icon: 'ER', keys: ['eruption', 'volcano'], name: 'Eruption', type: 'function',
+              eq: '3*exp(-(x^2+y^2)/20) * (1 + sin(t*4))', cLow: '#dc2626', cHigh: '#fcd34d' },
+            { category: 'animated', icon: 'MO', keys: ['morphing', 'transform'], name: 'Morphing', type: 'function',
+              eq: 'sin(x + t*2) * cos(y + t*2) * 2', cLow: '#8b5cf6', cHigh: '#ddd6fe' },
+            { category: 'animated', icon: 'RW', keys: ['rainbow', 'spectrum'], name: 'Rainbow Wave', type: 'function',
+              eq: 'sin(x/2 - t) + cos(y/2 + t) + sin((x+y)/3 - t*0.5)', cLow: '#f43f5e', cHigh: '#a78bfa' },
+            { category: 'animated', icon: 'RO', keys: ['roller', 'coaster'], name: 'Roller', type: 'function',
+              eq: 'sin(x - t*3) * cos(y) + cos(x) * sin(y - t*2)', cLow: '#059669', cHigh: '#6ee7b7' },
+            { category: 'animated', icon: 'TS', keys: ['tsunami', 'bigwave'], name: 'Tsunami', type: 'function',
+              eq: '2*sin(x/3 - t*2) * exp(-0.02*x^2) * (1 + 0.5*cos(y/4))', cLow: '#0369a1', cHigh: '#bae6fd' }
+        ];
+
+        const categories = [
+            { id: 'all', name: 'All', icon: 'AL' },
+            { id: 'classic', name: 'Classic', icon: 'CL' },
+            { id: 'waves', name: 'Waves', icon: 'WA' },
+            { id: 'minimal', name: 'Minimal', icon: 'MI' },
+            { id: 'algebraic', name: 'Algebraic', icon: 'AL' },
+            { id: 'spirals', name: 'Spirals', icon: 'SP' },
+            { id: 'fun', name: 'Fun', icon: 'FU' },
+            { id: 'animated', name: 'Animated', icon: 'AN' }
+        ];
+
+        function init() {
+            const getEl = (id) => document.getElementById(id);
+            uiElements = {
+                layerList: getEl('layer-list'),
+                layerControls: getEl('layer-controls'),
+                emptyState: getEl('empty-state'),
+                modeFunction: getEl('mode-function'),
+                modeParametric: getEl('mode-parametric'),
+                modeCurve: getEl('mode-curve'),
+                uiFunction: getEl('ui-function-mode'),
+                uiParametric: getEl('ui-parametric-mode'),
+                uiCurve: getEl('ui-curve-mode'),
+                eqZ: getEl('eq-z'),
+                eqParamX: getEl('eq-param-x'),
+                eqParamY: getEl('eq-param-y'),
+                eqParamZ: getEl('eq-param-z'),
+                eqCurveX: getEl('eq-curve-x'),
+                eqCurveY: getEl('eq-curve-y'),
+                eqCurveZ: getEl('eq-curve-z'),
+                rangeX: getEl('range-x'),
+                rangeY: getEl('range-y'),
+                uMin: getEl('u-min'),
+                uMax: getEl('u-max'),
+                vMin: getEl('v-min'),
+                vMax: getEl('v-max'),
+                curveUMin: getEl('curve-u-min'),
+                curveUMax: getEl('curve-u-max'),
+                curveSegments: getEl('curve-segments'),
+                curveRadius: getEl('curve-radius'),
+                curveClosed: getEl('curve-closed'),
+                style: getEl('material-style'),
+                pattern: getEl('pattern-style'),
+                opacity: getEl('opacity-slider'),
+                colorLow: getEl('color-low'),
+                colorHigh: getEl('color-high'),
+                error: getEl('error-msg'),
+                equationStatus: getEl('equation-status'),
+                lightAngle: getEl('light-angle'),
+                lightElevation: getEl('light-elevation'),                envSelect: getEl('environment-select'),                envIntensity: getEl('env-intensity'),                showEnvBg: getEl('show-env-bg'),                fxBloom: getEl('fx-bloom'),                bloomStrength: getEl('bloom-strength'),                bloomRadius: getEl('bloom-radius'),                bloomControls: getEl('bloom-controls'),                fxVignette: getEl('fx-vignette'),                fxChromatic: getEl('fx-chromatic'),                fxGrain: getEl('fx-grain'),
+                posX: getEl('pos-x'),
+                posY: getEl('pos-y'),
+                posZ: getEl('pos-z'),
+                scaleX: getEl('scale-x'),
+                scaleY: getEl('scale-y'),
+                scaleZ: getEl('scale-z'),
+                sliderScaleX: getEl('slider-scale-x'),
+                sliderScaleY: getEl('slider-scale-y'),
+                sliderScaleZ: getEl('slider-scale-z'),
+                flipX: getEl('flip-x'),
+                flipY: getEl('flip-y'),
+                flipZ: getEl('flip-z'),
+                closedShape: getEl('closed-shape'),
+                useEquationAnim: getEl('use-equation-anim'),
+                autoRotate: getEl('auto-rotate'),
+                varsContainer: getEl('variables-container'),
+                togglePanelBtn: getEl('toggle-panel-btn'),
+                uiPanel: getEl('ui-panel'),
+                hidePanelBtn: getEl('hide-panel-btn'),
+                magicInput: getEl('magic-input'),
+                presetSearch: getEl('preset-search'),
+                presetTabs: getEl('preset-tabs'),
+                presetGrid: getEl('preset-grid'),
+                presetCount: getEl('preset-count'),
+                shapeFinderInput: getEl('shape-finder-input'),
+                shapeFinderResult: getEl('shape-finder-result')
+            };
+
+            const equationInputs = [
+                [uiElements.eqZ, ['x', 'y', 't']],
+                [uiElements.eqParamX, ['u', 'v', 't']],
+                [uiElements.eqParamY, ['u', 'v', 't']],
+                [uiElements.eqParamZ, ['u', 'v', 't']],
+                [uiElements.eqCurveX, ['u', 't']],
+                [uiElements.eqCurveY, ['u', 't']],
+                [uiElements.eqCurveZ, ['u', 't']]
+            ];
+            equationInputs.forEach(([el, args]) => registerEquationInput(el, args));
+            document.querySelectorAll('.eq-chip').forEach((chip) => {
+                chip.addEventListener('click', () => insertEquationToken(chip.dataset.insert || chip.textContent || ''));
+            });
+
+            // Initialize preset browser
+            initPresetBrowser();
+
+            createVariableUI('a', 1.0);
+            createVariableUI('b', 1.0);
+            createVariableUI('c', 1.0);
+
+            const container = getEl('canvas-container');
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(config.bgColor, 0.015);
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(15, 15, 15);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            transformControl = new TransformControls(camera, renderer.domElement);
+            transformControl.addEventListener('dragging-changed', (e) => {
+                controls.enabled = !e.value;
+                isTransforming = e.value;
+            });
+            transformControl.addEventListener('change', () => {
+                if (activeLayerId && isTransforming) {
+                    const layer = layers.find(l => l.id === activeLayerId);
+                    if (layer && layer.root) {
+                        layer.posX = layer.root.position.x;
+                        layer.posY = layer.root.position.y;
+                        layer.posZ = layer.root.position.z;
+                        updateUIFromLayer(layer);
+                    }
+                }
+            });
+            scene.add(transformControl);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            scene.add(mainLight);
+            updateLightPosition();
+
+            // HDRI Environment initialized below
+            
+            // ============= HDRI ENVIRONMENT SETUP (moved for proper scope) =============
+            let pmremGenerator = new THREE.PMREMGenerator(renderer);
+            pmremGenerator.compileEquirectangularShader();
+            let currentEnvMap = null;
+
+            function createProceduralEnv(type) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 512; canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                let grad;
+                if (type === 'studio') {
+                    grad = ctx.createLinearGradient(0, 0, 0, 256);
+                    grad.addColorStop(0, '#888888'); grad.addColorStop(0.5, '#666666'); grad.addColorStop(1, '#444444');
+                } else if (type === 'studio-soft') {
+                    grad = ctx.createLinearGradient(0, 0, 0, 256);
+                    grad.addColorStop(0, '#c9ced6'); grad.addColorStop(0.5, '#aab1bd'); grad.addColorStop(1, '#7a8799');
+                } else if (type === 'sunset') {
+                    grad = ctx.createLinearGradient(0, 0, 0, 256);
+                    grad.addColorStop(0, '#1a0a2e'); grad.addColorStop(0.3, '#4a1942'); grad.addColorStop(0.5, '#ff6b35'); grad.addColorStop(0.7, '#f7931e'); grad.addColorStop(1, '#2d1b4e');
+                } else if (type === 'dawn') {
+                    grad = ctx.createLinearGradient(0, 0, 0, 256);
+                    grad.addColorStop(0, '#10133a'); grad.addColorStop(0.35, '#4e3b7a'); grad.addColorStop(0.6, '#ffb266'); grad.addColorStop(0.9, '#ffe6c9'); grad.addColorStop(1, '#b7d7ff');
+                } else if (type === 'night') {
+                    grad = ctx.createLinearGradient(0, 0, 0, 256);
+                    grad.addColorStop(0, '#0a0a1a'); grad.addColorStop(0.5, '#1a1a3a'); grad.addColorStop(1, '#0f0f2f');
+                    ctx.fillStyle = grad; ctx.fillRect(0, 0, 512, 256);
+                    ctx.fillStyle = '#ffffff';
+                    for (let i = 0; i < 200; i++) { ctx.beginPath(); ctx.arc(Math.random() * 512, Math.random() * 180, Math.random() * 1.5, 0, Math.PI * 2); ctx.fill(); }
+                    return canvas;
+                } else if (type === 'forest') {
+                    grad = ctx.createLinearGradient(0, 0, 0, 256);
+                    grad.addColorStop(0, '#87ceeb'); grad.addColorStop(0.4, '#90ee90'); grad.addColorStop(0.7, '#228b22'); grad.addColorStop(1, '#1a4a1a');
+                } else if (type === 'abstract') {
+                    grad = ctx.createLinearGradient(0, 0, 512, 256);
+                    grad.addColorStop(0, '#ff00ff'); grad.addColorStop(0.25, '#00ffff'); grad.addColorStop(0.5, '#ffff00'); grad.addColorStop(0.75, '#ff00ff'); grad.addColorStop(1, '#00ffff');
+                } else if (type === 'aurora') {
+                    grad = ctx.createLinearGradient(0, 0, 0, 256);
+                    grad.addColorStop(0, '#021219'); grad.addColorStop(0.4, '#0a2f4f'); grad.addColorStop(1, '#0b122f');
+                    ctx.fillStyle = grad; ctx.fillRect(0, 0, 512, 256);
+                    ctx.globalAlpha = 0.6;
+                    for (let i = 0; i < 6; i++) {
+                        const y = 40 + i * 30;
+                        const wave = ctx.createLinearGradient(0, y, 512, y + 60);
+                        wave.addColorStop(0, 'rgba(100,255,210,0)');
+                        wave.addColorStop(0.5, 'rgba(100,255,210,0.7)');
+                        wave.addColorStop(1, 'rgba(100,255,210,0)');
+                        ctx.fillStyle = wave;
+                        ctx.beginPath();
+                        ctx.ellipse(256, y, 320, 30, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.globalAlpha = 1;
+                    return canvas;
+                } else if (type === 'space') {
+                    grad = ctx.createLinearGradient(0, 0, 0, 256);
+                    grad.addColorStop(0, '#000005'); grad.addColorStop(0.5, '#0a0015'); grad.addColorStop(1, '#000008');
+                    ctx.fillStyle = grad; ctx.fillRect(0, 0, 512, 256);
+                    ctx.fillStyle = '#ffffff';
+                    for (let i = 0; i < 400; i++) { const s = Math.random(); ctx.globalAlpha = 0.3 + s * 0.7; ctx.beginPath(); ctx.arc(Math.random() * 512, Math.random() * 256, s * 2, 0, Math.PI * 2); ctx.fill(); }
+                    ctx.globalAlpha = 1; return canvas;
+                } else { return null; }
+                ctx.fillStyle = grad; ctx.fillRect(0, 0, 512, 256);
+                return canvas;
+            }
+
+            function updateEnvironment() {
+                const envSelect = uiElements.envSelect;
+                const envIntensity = uiElements.envIntensity;
+                const showEnvBg = uiElements.showEnvBg;
+                if (!envSelect) return;
+                const type = envSelect.value;
+                const intensity = envIntensity ? parseFloat(envIntensity.value) : 1.0;
+                currentEnvIntensity = Number.isFinite(intensity) ? intensity : 1;
+                const showBg = showEnvBg ? showEnvBg.checked : false;
+                if (type === 'none') {
+                    scene.environment = null;
+                    scene.background = new THREE.Color(config.bgColor);
+                    applyEnvIntensity();
+                    return;
+                }
+                const canvas = createProceduralEnv(type);
+                if (!canvas) return;
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.mapping = THREE.EquirectangularReflectionMapping;
+                currentEnvMap = pmremGenerator.fromEquirectangular(texture).texture;
+                scene.environment = currentEnvMap;
+                if (showBg) { scene.background = currentEnvMap; } else { scene.background = new THREE.Color(config.bgColor); }
+                texture.dispose();
+                applyEnvIntensity();
+            }
+
+            // Initialize environment
+            updateEnvironment();
+
+            // Post-Processing Setup
+            const VignetteShader = {
+                uniforms: { tDiffuse: { value: null }, darkness: { value: 0.5 }, offset: { value: 1.0 } },
+                vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+                fragmentShader: `uniform sampler2D tDiffuse; uniform float darkness; uniform float offset; varying vec2 vUv;
+                    void main() { vec4 color = texture2D(tDiffuse, vUv); vec2 uv = (vUv - 0.5) * 2.0; float vig = clamp(1.0 - dot(uv, uv) * darkness + offset - 1.0, 0.0, 1.0); gl_FragColor = vec4(color.rgb * vig, color.a); }`
+            };
+            const ChromaticShader = {
+                uniforms: { tDiffuse: { value: null }, amount: { value: 0.003 } },
+                vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+                fragmentShader: `uniform sampler2D tDiffuse; uniform float amount; varying vec2 vUv;
+                    void main() { vec2 dir = vUv - 0.5; float r = texture2D(tDiffuse, vUv + dir * amount).r; float g = texture2D(tDiffuse, vUv).g; float b = texture2D(tDiffuse, vUv - dir * amount).b; gl_FragColor = vec4(r, g, b, 1.0); }`
+            };
+            const GrainShader = {
+                uniforms: { tDiffuse: { value: null }, amount: { value: 0.05 }, time: { value: 0.0 } },
+                vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+                fragmentShader: `uniform sampler2D tDiffuse; uniform float amount; uniform float time; varying vec2 vUv;
+                    float rand(vec2 co) { return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453); }
+                    void main() { vec4 color = texture2D(tDiffuse, vUv); float noise = rand(vUv + time) * amount; gl_FragColor = vec4(color.rgb + noise - amount * 0.5, color.a); }`
+            };
+            // Post-processing passes (using global variables)
+
+            function setupComposer() {
+                composer = new EffectComposer(renderer);
+                renderPass = new RenderPass(scene, camera);
+                bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.4, 0.85);
+                bloomPass.enabled = false;
+                vignettePass = new ShaderPass(VignetteShader); vignettePass.enabled = false;
+                chromaticPass = new ShaderPass(ChromaticShader); chromaticPass.enabled = false;
+                grainPass = new ShaderPass(GrainShader); grainPass.enabled = false;
+                outputPass = new OutputPass();
+                composer.addPass(renderPass);
+                composer.addPass(bloomPass);
+                composer.addPass(vignettePass);
+                composer.addPass(chromaticPass);
+                composer.addPass(grainPass);
+                composer.addPass(outputPass);
+            }
+            setupComposer();
+
+            function updatePostProcessing() {
+                const bloom = uiElements.fxBloom.checked;
+                const vignette = uiElements.fxVignette.checked;
+                const chromatic = uiElements.fxChromatic.checked;
+                const grain = uiElements.fxGrain.checked;
+                useComposer = bloom || vignette || chromatic || grain;
+                bloomPass.enabled = bloom;
+                if (bloom) { bloomPass.strength = parseFloat(uiElements.bloomStrength.value); bloomPass.radius = parseFloat(uiElements.bloomRadius.value); }
+                uiElements.bloomControls.style.display = bloom ? 'flex' : 'none';
+                vignettePass.enabled = vignette;
+                chromaticPass.enabled = chromatic;
+                grainPass.enabled = grain;
+            }
+            // Save/Load System
+            function serializeScene() {
+                const layerData = layers.map(l => ({
+                    name: l.name,
+                    type: l.type,
+                    equation: l.equation,
+                    rangeX: l.rangeX,
+                    rangeY: l.rangeY,
+                    pX: l.pX,
+                    pY: l.pY,
+                    pZ: l.pZ,
+                    uMin: l.uMin,
+                    uMax: l.uMax,
+                    vMin: l.vMin,
+                    vMax: l.vMax,
+                    curveX: l.curveX,
+                    curveY: l.curveY,
+                    curveZ: l.curveZ,
+                    curveUMin: l.curveUMin,
+                    curveUMax: l.curveUMax,
+                    curveSegments: l.curveSegments,
+                    curveRadius: l.curveRadius,
+                    curveClosed: l.curveClosed,
+                    style: l.style,
+                    pattern: l.pattern,
+                    opacity: l.opacity,
+                    colorLow: l.colorLow,
+                    colorHigh: l.colorHigh,
+                    posX: l.posX,
+                    posY: l.posY,
+                    posZ: l.posZ,
+                    scaleX: l.scaleX,
+                    scaleY: l.scaleY,
+                    scaleZ: l.scaleZ,
+                    isFlippedX: l.isFlippedX,
+                    isFlippedY: l.isFlippedY,
+                    isFlippedZ: l.isFlippedZ,
+                    animMode: l.animMode,
+                    useEquationAnim: l.useEquationAnim,
+                    closedShape: l.closedShape
+                }));
+                return {
+                    version: 1,
+                    camera: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+                    layers: layerData,
+                    settings: {
+                        env: uiElements.envSelect?.value || 'studio',
+                        envIntensity: uiElements.envIntensity?.value || '1',
+                        showEnvBg: uiElements.showEnvBg?.checked || false,
+                        bloom: uiElements.fxBloom?.checked || false,
+                        vignette: uiElements.fxVignette?.checked || false,
+                        chromatic: uiElements.fxChromatic?.checked || false,
+                        grain: uiElements.fxGrain?.checked || false
+                    }
+                };
+            }
+
+            function loadSceneData(data) {
+                try {
+                    // Clear existing layers
+                    layers.forEach(l => { if (l.root) scene.remove(l.root); });
+                    layers.length = 0;
+                    nextLayerId = 1;
+                    activeLayerId = null;
+
+                    // Restore camera
+                    if (data.camera) camera.position.set(data.camera.x, data.camera.y, data.camera.z);
+
+                    // Restore layers
+                    data.layers.forEach(ld => {
+                        const eq = ld.equation ?? ld.eq ?? '0';
+                        const pX = ld.pX ?? ld.xEq ?? 'u';
+                        const pY = ld.pY ?? ld.yEq ?? 'v';
+                        const pZ = ld.pZ ?? ld.zEq ?? '0';
+                        const curveX = ld.curveX ?? 'cos(u)';
+                        const curveY = ld.curveY ?? 'sin(u)';
+                        const curveZ = ld.curveZ ?? 'u/6';
+
+                        addLayer({
+                            type: ld.type || 'function',
+                            eq,
+                            x: pX,
+                            y: pY,
+                            z: pZ,
+                            curveX,
+                            curveY,
+                            curveZ,
+                            curveUMin: ld.curveUMin,
+                            curveUMax: ld.curveUMax,
+                            curveSegments: ld.curveSegments,
+                            curveRadius: ld.curveRadius,
+                            curveClosed: ld.curveClosed,
+                            name: ld.name
+                        });
+                        const layer = layers[layers.length - 1];
+                        Object.assign(layer, {
+                            equation: eq,
+                            rangeX: ld.rangeX ?? 10,
+                            rangeY: ld.rangeY ?? 10,
+                            pX,
+                            pY,
+                            pZ,
+                            uMin: ld.uMin ?? 0,
+                            uMax: ld.uMax ?? 6.28,
+                            vMin: ld.vMin ?? 0,
+                            vMax: ld.vMax ?? 6.28,
+                            curveX,
+                            curveY,
+                            curveZ,
+                            curveUMin: ld.curveUMin ?? 0,
+                            curveUMax: ld.curveUMax ?? 6.28,
+                            curveSegments: ld.curveSegments ?? 200,
+                            curveRadius: ld.curveRadius ?? 0.05,
+                            curveClosed: ld.curveClosed || false,
+                            style: ld.style || 'plastic',
+                            pattern: ld.pattern || 'none',
+                            opacity: ld.opacity ?? 1,
+                            colorLow: ld.colorLow || '#3b82f6',
+                            colorHigh: ld.colorHigh || '#60a5fa',
+                            posX: ld.posX || 0,
+                            posY: ld.posY || 0,
+                            posZ: ld.posZ || 0,
+                            scaleX: ld.scaleX || 1,
+                            scaleY: ld.scaleY || 1,
+                            scaleZ: ld.scaleZ || 1,
+                            isFlippedX: ld.isFlippedX ?? ld.flipX ?? false,
+                            isFlippedY: ld.isFlippedY ?? ld.flipY ?? false,
+                            isFlippedZ: ld.isFlippedZ ?? ld.flipZ ?? false,
+                            animMode: ld.animMode || 'none',
+                            useEquationAnim: ld.useEquationAnim ?? true,
+                            closedShape: ld.closedShape || false
+                        });
+                        buildLayerMesh(layer);
+                    });
+
+                    // Restore settings
+                    if (data.settings) {
+                        if (uiElements.envSelect) uiElements.envSelect.value = data.settings.env || 'studio';
+                        if (uiElements.envIntensity) uiElements.envIntensity.value = data.settings.envIntensity || '1';
+                        if (uiElements.showEnvBg) uiElements.showEnvBg.checked = data.settings.showEnvBg || false;
+                        if (uiElements.fxBloom) uiElements.fxBloom.checked = data.settings.bloom || false;
+                        if (uiElements.fxVignette) uiElements.fxVignette.checked = data.settings.vignette || false;
+                        if (uiElements.fxChromatic) uiElements.fxChromatic.checked = data.settings.chromatic || false;
+                        if (uiElements.fxGrain) uiElements.fxGrain.checked = data.settings.grain || false;
+                        updateEnvironment();
+                        updatePostProcessing();
+                    }
+
+                    if (layers.length > 0) setActiveLayer(layers[0].id);
+                    renderLayerList();
+                    return true;
+                } catch (e) {
+                    console.error('Failed to load scene:', e);
+                    return false;
+                }
+            }
+
+            function saveScene() {
+                const data = serializeScene();
+                const json = JSON.stringify(data, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Vitreous3D_Scene_' + Date.now() + '.vit3d';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            function loadSceneFromFile(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (loadSceneData(data)) {
+                            alert('Scene loaded successfully!');
+                        } else {
+                            alert('Failed to load scene.');
+                        }
+                    } catch (err) {
+                        alert('Invalid scene file.');
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            function shareURL() {
+                const data = serializeScene();
+                const json = JSON.stringify(data);
+                const encoded = btoa(unescape(encodeURIComponent(json)));
+                const url = window.location.origin + window.location.pathname + '?scene=' + encoded;
+                navigator.clipboard.writeText(url).then(() => {
+                    alert('Scene URL copied to clipboard! Note: Very long URLs may not work in all browsers.');
+                }).catch(() => {
+                    prompt('Copy this URL to share your scene:', url);
+                });
+            }
+
+            function loadFromURL() {
+                const params = new URLSearchParams(window.location.search);
+                const sceneParam = params.get('scene');
+                if (sceneParam) {
+                    try {
+                        const json = decodeURIComponent(escape(atob(sceneParam)));
+                        const data = JSON.parse(json);
+                        loadSceneData(data);
+                    } catch (e) {
+                        console.warn('Could not load scene from URL');
+                    }
+                }
+            }
+
+            // Auto-save to localStorage every 30 seconds
+            setInterval(() => {
+                try {
+                    localStorage.setItem('vitreous3d_autosave', JSON.stringify(serializeScene()));
+                } catch (e) {}
+            }, 30000);
+
+            // Load autosave on startup if no URL scene
+            function loadAutoSave() {
+                const params = new URLSearchParams(window.location.search);
+                if (!params.get('scene')) {
+                    const saved = localStorage.getItem('vitreous3d_autosave');
+                    if (saved) {
+                        try {
+                            const data = JSON.parse(saved);
+                            if (data.layers && data.layers.length > 0) {
+                                // Don't auto-load, just have it available
+                            }
+                        } catch (e) {}
+                    }
+                }
+            }
+            // Tutorial System
+            const tutorials = {
+                1: {
+                    title: 'Your First Surface',
+                    steps: [
+                        { html: '<h3>Welcome to Vitreous 3D!</h3><p>This tool lets you visualize mathematical equations as beautiful 3D surfaces.</p><p>The surface you see is created from the equation <code>sin(sqrt(x^2 + y^2) - 3*t)</code></p><div class="tip">The "t" in the equation creates animation over time!</div>', highlight: null },
+                        { html: '<h3>Camera Controls</h3><p><strong>Rotate:</strong> Click and drag on the 3D view</p><p><strong>Zoom:</strong> Scroll with mouse wheel</p><p><strong>Pan:</strong> Right-click and drag</p><div class="tip">Try rotating the view now to see the surface from different angles!</div>', highlight: 'canvas-container' },
+                        { html: '<h3>The Equation Input</h3><p>Type any mathematical equation here using x and y as variables.</p><p>Try: <code>x^2 - y^2</code> (a saddle surface)</p><p>Or: <code>cos(x) * sin(y)</code> (a wave pattern)</p>', highlight: 'equation-input' },
+                        { html: '<h3>Presets Library</h3><p>Click the preset selector to explore 60+ beautiful mathematical surfaces!</p><p>They\'re organized by category: Classic, Waves, Spirals, and more.</p><div class="tip">Each preset automatically fills in the equation for you.</div>', highlight: 'preset-select' },
+                        { html: '<h3>You did it!</h3><p>You\'ve learned the basics of Vitreous 3D.</p><p>Next, try the "Playing with Variables" tutorial to learn about dynamic parameters!</p>', highlight: null }
+                    ]
+                },
+                2: {
+                    title: 'Playing with Variables',
+                    steps: [
+                        { html: '<h3>Dynamic Variables: a, b, c</h3><p>Besides x and y, you can use variables <code>a</code>, <code>b</code>, and <code>c</code> in your equations.</p><p>These are controlled by sliders, letting you interactively change the surface!</p>', highlight: null },
+                        { html: '<h3>The Variable Sliders</h3><p>Look in the control panel for the a, b, c sliders.</p><p>Try this equation: <code>a*sin(x) + b*cos(y)</code></p><p>Then move the sliders to see the surface change!</p>', highlight: 'slider-a' },
+                        { html: '<h3>Creative Uses</h3><p><code>sin(a*x)*cos(b*y)</code> - Control wave frequency</p><p><code>x^2/a + y^2/b</code> - Stretch an elliptical paraboloid</p><p><code>(x^2+y^2)^c</code> - Adjust the curve steepness</p><div class="tip">Variables let you explore infinite variations of a single equation!</div>', highlight: null },
+                        { html: '<h3>Great job!</h3><p>You can now create dynamic, adjustable surfaces.</p><p>The next tutorial covers parametric equations for even more shapes!</p>', highlight: null }
+                    ]
+                },
+                3: {
+                    title: 'Parametric Magic',
+                    steps: [
+                        { html: '<h3>What are Parametric Equations?</h3><p>Instead of z = f(x,y), parametric surfaces define x, y, and z separately using parameters <code>u</code> and <code>v</code>.</p><p>This allows shapes impossible with regular equations!</p>', highlight: null },
+                        { html: '<h3>Switch to Parametric Mode</h3><p>Click the "Parametric" button to switch equation modes.</p><p>You\'ll see three input fields: one each for X, Y, and Z.</p>', highlight: 'mode-parametric' },
+                        { html: '<h3>Example: A Torus (Donut)</h3><p>X: <code>(4 + cos(v)) * cos(u)</code></p><p>Y: <code>(4 + cos(v)) * sin(u)</code></p><p>Z: <code>sin(v)</code></p><div class="tip">u and v typically range from 0 to 2*pi (about 6.28)</div>', highlight: null },
+                        { html: '<h3>The Range Controls</h3><p>Adjust u-min, u-max, v-min, v-max to control how much of the surface is drawn.</p><p>Try changing these values to create partial surfaces!</p>', highlight: 'u-min' },
+                        { html: '<h3>Amazing!</h3><p>Parametric equations unlock shapes like toruses, Klein bottles, and spirals.</p><p>Explore the "Spirals" and "Minimal" presets for inspiration!</p>', highlight: null }
+                    ]
+                },
+                4: {
+                    title: 'Animation Tricks',
+                    steps: [
+                        { html: '<h3>The Time Variable: t</h3><p>The variable <code>t</code> represents time and increases automatically.</p><p>Use it to create animated, flowing surfaces!</p>', highlight: null },
+                        { html: '<h3>Simple Animation</h3><p>Try: <code>sin(x + t) * cos(y)</code></p><p>The surface will appear to flow in one direction.</p><p>Or: <code>sin(sqrt(x^2+y^2) - t)</code> for ripples!</p>', highlight: 'equation-input' },
+                        { html: '<h3>Animation Speed</h3><p>Use the Animation Speed slider to control how fast time flows.</p><p>Set to 0 to freeze time, or increase for faster motion.</p>', highlight: 'anim-speed' },
+                        { html: '<h3>Play/Pause</h3><p>Click the play/pause button to start or stop the animation.</p><div class="tip">Pause the animation to examine interesting moments!</div>', highlight: 'play-btn' },
+                        { html: '<h3>Creative Ideas</h3><p><code>sin(x*y + t)</code> - Diagonal waves</p><p><code>cos(t)*sin(x)*cos(y)</code> - Pulsing surface</p><p><code>sin(x+t)*sin(y+t*2)</code> - Complex motion</p>', highlight: null }
+                    ]
+                },
+                5: {
+                    title: 'Materials & Effects',
+                    steps: [
+                        { html: '<h3>Material Styles</h3><p>The Material dropdown offers many looks:</p><p><strong>Basic:</strong> Plastic, Water, Glass, Wireframe</p><p><strong>PBR:</strong> Chrome, Gold, Marble, Neon, and more!</p>', highlight: 'material-style' },
+                        { html: '<h3>Colors</h3><p>Use the color pickers to set the gradient colors.</p><p>The surface smoothly transitions between your two chosen colors based on height.</p>', highlight: 'color-low' },
+                        { html: '<h3>Environments</h3><p>The Environment dropdown adds realistic reflections!</p><p>Try "Sunset" with Chrome material for stunning reflections.</p>', highlight: 'environment-select' },
+                        { html: '<h3>Post-Processing Effects</h3><p>Enable effects for cinematic quality:</p><p><strong>Bloom:</strong> Adds glow to bright areas</p><p><strong>Vignette:</strong> Darkens edges artistically</p><p><strong>Chromatic:</strong> Subtle color fringing</p>', highlight: 'fx-bloom' },
+                        { html: '<h3>You\'re an Expert!</h3><p>You\'ve completed all tutorials. Now explore, create, and share your mathematical art!</p><div class="tip">Use the Save button to keep your creations, or Share to send them to friends!</div>', highlight: null }
+                    ]
+                },
+                6: {
+                    title: 'Finding Equations',
+                    steps: [
+                        { html: '<h3>Search for the Shape</h3><p>Pick a shape name from the library, then search for its equation.</p><p>Use this fill-in template:</p><p><code>[shape name] 3D equation</code> or <code>[shape name] parametric equations</code></p><p>Good query patterns:</p><ul><li><code>torus parametric equations</code></li><li><code>klein bottle x(u,v) y(u,v) z(u,v)</code></li><li><code>algebraic surface equation</code></li></ul>', highlight: 'preset-search' },
+                        { html: '<h3>Match the Mode</h3><p>If the source shows <code>z = f(x,y)</code>, use Function mode.</p><p>If it lists <code>x(u,v)</code>, <code>y(u,v)</code>, <code>z(u,v)</code>, use Parametric mode.</p><div class="tip">Most named 3D shapes are parametric.</div>', highlight: 'mode-parametric' },
+                        { html: '<h3>Translate to Vitreous</h3><p>Use <code>*</code> for multiplication and <code>pi</code> for constants.</p><p>Example: <code>sin(x)cos(y)</code> becomes <code>sin(x)*cos(y)</code>.</p><p>If you see an implicit form like <code>x^2 + y^2 + z^2 = 1</code>, search for a parametric version or solve for <code>z</code> and use Function mode.</p>', highlight: 'eq-z' }
+                    ]
+                },
+                7: {
+                    title: 'Equation Builder',
+                    steps: [
+                        { html: '<h3>Function Template</h3><p>Structure:</p><p><code>z = [amp] * f([kx]*x, [ky]*y) + [offset]</code></p><p>Try:</p><p><code>z = a * sin(b*x) * cos(c*y) + 0</code></p><div class="tip">Use a, b, c sliders to explore variations.</div>', highlight: 'eq-z' },
+                        { html: '<h3>Parametric Template</h3><p>Structure:</p><p><code>x = f(u,v)</code><br><code>y = g(u,v)</code><br><code>z = h(u,v)</code></p><p>Starter sphere:</p><p><code>x = a*sin(v)*cos(u)</code><br><code>y = a*sin(v)*sin(u)</code><br><code>z = a*cos(v)</code></p><p>Ranges: <code>u: 0..2*pi</code>, <code>v: 0..pi</code></p>', highlight: 'mode-parametric' },
+                        { html: '<h3>Rules of Thumb</h3><ul><li>Always use <code>*</code> for multiplication</li><li>Use <code>pi</code> and <code>2*pi</code> for circles</li><li>Use <code>^</code> for powers: <code>x^2</code></li><li>Functions: <code>sin</code>, <code>cos</code>, <code>sqrt</code>, <code>exp</code>, <code>log</code></li></ul>', highlight: 'eq-z' }
+                    ]
+                }
+            };
+
+            let currentLesson = null;
+            let currentStep = 0;
+            let highlightedElement = null;
+
+            function showTutorialModal() {
+                const modal = getEl('tutorial-modal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    showTutorialMenu();
+                    const learnBtn = getEl('learn-btn');
+                    if (learnBtn) learnBtn.classList.remove('learn-highlight');
+                }
+            }
+
+            function hideTutorialModal() {
+                const modal = getEl('tutorial-modal');
+                if (modal) modal.style.display = 'none';
+                clearHighlight();
+                currentLesson = null;
+            }
+
+            function showTutorialMenu() {
+                const body = getEl('tutorial-body');
+                const nav = getEl('tutorial-nav');
+                const title = getEl('tutorial-title');
+                if (title) title.textContent = 'Tutorials & Tips';
+                if (nav) nav.style.display = 'none';
+                if (body) {
+                    body.innerHTML = `
+                        <div class="tutorial-menu">
+                            <button class="tutorial-item" data-lesson="1"><span class="lesson-icon">1</span><span class="lesson-text"><strong>Your First Surface</strong><br>Basic controls and navigation</span></button>
+                            <button class="tutorial-item" data-lesson="2"><span class="lesson-icon">2</span><span class="lesson-text"><strong>Playing with Variables</strong><br>Using a, b, c sliders</span></button>
+                            <button class="tutorial-item" data-lesson="3"><span class="lesson-icon">3</span><span class="lesson-text"><strong>Parametric Magic</strong><br>Understanding u, v equations</span></button>
+                            <button class="tutorial-item" data-lesson="4"><span class="lesson-icon">4</span><span class="lesson-text"><strong>Animation Tricks</strong><br>Using the time variable t</span></button>
+                            <button class="tutorial-item" data-lesson="5"><span class="lesson-icon">5</span><span class="lesson-text"><strong>Materials & Effects</strong><br>Making surfaces beautiful</span></button>
+                            <button class="tutorial-item" data-lesson="6"><span class="lesson-icon">6</span><span class="lesson-text"><strong>Finding Equations</strong><br>Search tips for Vitreous 3D</span></button>
+                            <button class="tutorial-item" data-lesson="7"><span class="lesson-icon">7</span><span class="lesson-text"><strong>Equation Builder</strong><br>Templates for function and parametric</span></button>
+                        </div>
+                    `;
+                    body.querySelectorAll('.tutorial-item').forEach(btn => {
+                        btn.addEventListener('click', () => startLesson(parseInt(btn.dataset.lesson)));
+                    });
+                }
+                clearHighlight();
+            }
+
+            function startLesson(lessonNum) {
+                currentLesson = lessonNum;
+                currentStep = 0;
+                showStep();
+            }
+
+            function showStep() {
+                if (!currentLesson || !tutorials[currentLesson]) return;
+                const lesson = tutorials[currentLesson];
+                const step = lesson.steps[currentStep];
+                const body = getEl('tutorial-body');
+                const nav = getEl('tutorial-nav');
+                const title = getEl('tutorial-title');
+                const stepLabel = getEl('tutorial-step');
+                const prevBtn = getEl('tutorial-prev');
+                const nextBtn = getEl('tutorial-next');
+
+                if (title) title.textContent = lesson.title;
+                if (body) body.innerHTML = '<div class="tutorial-step">' + step.html + '</div>';
+                if (nav) nav.style.display = 'flex';
+                if (stepLabel) stepLabel.textContent = 'Step ' + (currentStep + 1) + '/' + lesson.steps.length;
+                if (prevBtn) prevBtn.disabled = currentStep === 0;
+                if (nextBtn) nextBtn.textContent = currentStep === lesson.steps.length - 1 ? 'Finish' : 'Next \u2192';
+
+                clearHighlight();
+                if (step.highlight) {
+                    highlightElement(step.highlight);
+                }
+            }
+
+            function nextStep() {
+                if (!currentLesson) return;
+                const lesson = tutorials[currentLesson];
+                if (currentStep < lesson.steps.length - 1) {
+                    currentStep++;
+                    showStep();
+                } else {
+                    showTutorialMenu();
+                    const learnBtn = getEl('learn-btn');
+                    if (learnBtn) learnBtn.classList.remove('learn-highlight');
+                }
+            }
+
+            function prevStep() {
+                if (currentStep > 0) {
+                    currentStep--;
+                    showStep();
+                }
+            }
+
+            function highlightElement(id) {
+                clearHighlight();
+                const el = getEl(id);
+                if (el) {
+                    el.classList.add('highlight-element');
+                    highlightedElement = el;
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            function clearHighlight() {
+                if (highlightedElement) {
+                    highlightedElement.classList.remove('highlight-element');
+                    highlightedElement = null;
+                }
+            }
+            // Enhanced Animation System (using global animEffect and animStartTime)
+
+            function updateAnimEffect() {
+                const select = getEl('anim-effect');
+                animEffect = select ? select.value : 'none';
+                animStartTime = performance.now();
+            }
+
+            function applyAnimEffect(deltaTime) {
+                const t = (performance.now() - animStartTime) / 1000;
+
+                if (animEffect === 'spin') {
+                    layers.forEach(l => {
+                        if (l.root) l.root.rotation.y += 0.02;
+                    });
+                } else if (animEffect === 'bob') {
+                    layers.forEach(l => {
+                        if (l.root) l.root.position.y = l.posY + Math.sin(t * 2) * 2;
+                    });
+                } else if (animEffect === 'pulse') {
+                    const scale = 1 + Math.sin(t * 3) * 0.2;
+                    layers.forEach(l => {
+                        if (l.root) l.root.scale.set(scale * l.scaleX, scale * l.scaleY, scale * l.scaleZ);
+                    });
+                } else if (animEffect === 'wave') {
+                    layers.forEach(l => {
+                        if (l.root) {
+                            l.root.rotation.x = Math.sin(t) * 0.3;
+                            l.root.rotation.z = Math.cos(t) * 0.3;
+                        }
+                    });
+                } else if (animEffect === 'orbit') {
+                    const radius = camera.position.length();
+                    camera.position.x = Math.sin(t * 0.5) * radius;
+                    camera.position.z = Math.cos(t * 0.5) * radius;
+                    camera.lookAt(0, 0, 0);
+                }
+            }
+
+            // GIF Recording
+            let isRecording = false;
+            let recordedFrames = [];
+            let recordStartTime = 0;
+            const RECORD_DURATION = 3000; // 3 seconds
+            const RECORD_FPS = 15;
+
+            function startGifRecording() {
+                if (isRecording) return;
+                isRecording = true;
+                recordedFrames = [];
+                recordStartTime = performance.now();
+
+                const gifBtn = getEl('gif-btn');
+                if (gifBtn) {
+                    gifBtn.style.color = '#ff4444';
+                    gifBtn.title = 'Recording... (3s)';
+                }
+
+                captureFrame();
+            }
+
+            function captureFrame() {
+                if (!isRecording) return;
+
+                const elapsed = performance.now() - recordStartTime;
+                if (elapsed >= RECORD_DURATION) {
+                    finishGifRecording();
+                    return;
+                }
+
+                // Capture canvas as data URL
+                renderer.render(scene, camera);
+                const dataUrl = renderer.domElement.toDataURL('image/png');
+                recordedFrames.push(dataUrl);
+
+                // Schedule next frame
+                setTimeout(captureFrame, 1000 / RECORD_FPS);
+            }
+
+            function finishGifRecording() {
+                isRecording = false;
+                const gifBtn = getEl('gif-btn');
+                if (gifBtn) {
+                    gifBtn.style.color = '';
+                    gifBtn.title = 'Record GIF';
+                }
+
+                if (recordedFrames.length === 0) {
+                    alert('No frames captured!');
+                    return;
+                }
+
+                // Create animated GIF using canvas
+                createAnimatedGif(recordedFrames);
+            }
+
+            async function createAnimatedGif(frames) {
+                // Since gif.js requires external library, we'll create a downloadable ZIP of frames
+                // or use a simpler approach - download as WebM if supported
+
+                try {
+                    // Try using MediaRecorder for WebM
+                    const canvas = renderer.domElement;
+                    const stream = canvas.captureStream(RECORD_FPS);
+                    const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                    const chunks = [];
+
+                    alert('GIF recording complete! ' + frames.length + ' frames captured. Downloading...');
+
+                    // Download first frame as preview
+                    const link = document.createElement('a');
+                    link.download = 'Vitreous3D_Animation_' + Date.now() + '.png';
+                    link.href = frames[0];
+                    link.click();
+
+                    // Provide instructions for making GIF
+                    console.log('To create GIF: Use ezgif.com or similar tool with these ' + frames.length + ' frames');
+
+                } catch (e) {
+                    // Fallback: download frames as images
+                    alert('Captured ' + frames.length + ' frames! Downloading first frame...');
+                    const link = document.createElement('a');
+                    link.download = 'Vitreous3D_Frame.png';
+                    link.href = frames[0];
+                    link.click();
+                }
+            }
+
+            function toggleGifRecording() {
+                if (isRecording) {
+                    finishGifRecording();
+                } else {
+                    startGifRecording();
+                }
+            }
+
+
+
+
+
+            gridHelper = new THREE.GridHelper(20, 20, 0x555555, 0x222222);
+            scene.add(gridHelper);
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            renderer.domElement.addEventListener('pointerdown', onCanvasClick);
+
+            // Default startup shape
+            addLayer({ type: 'function', eq: 'sin(sqrt(x^2 + y^2) - 3t)', name: 'Main Surface' });
+
+            window.addEventListener('resize', onWindowResize);
+
+            const attach = (id, type, fn) => {
+                const el = getEl(id);
+                if (el) el.addEventListener(type, fn);
+            };
+
+            attach('add-layer-btn', 'click', () => addLayer({ type: 'function', eq: '0', name: 'New Object' }));
+            attach('update-btn', 'click', updateActiveLayer);
+            attach('magic-btn', 'click', handleMagicCommand);
+            attach('shape-finder-btn', 'click', handleShapeFinder);
+
+            if (uiElements.magicInput) {
+                uiElements.magicInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') handleMagicCommand();
+                });
+            }
+            if (uiElements.shapeFinderInput) {
+                uiElements.shapeFinderInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') handleShapeFinder();
+                });
+            }
+
+            if (uiElements.lightAngle) uiElements.lightAngle.addEventListener('input', updateLightPosition);
+            if (uiElements.lightElevation) uiElements.lightElevation.addEventListener('input', updateLightPosition);            if (uiElements.envSelect) uiElements.envSelect.addEventListener('change', updateEnvironment);            if (uiElements.envIntensity) uiElements.envIntensity.addEventListener('input', updateEnvironment);            if (uiElements.showEnvBg) uiElements.showEnvBg.addEventListener('change', updateEnvironment);
+            if (uiElements.fxBloom) uiElements.fxBloom.addEventListener('change', updatePostProcessing);
+            if (uiElements.bloomStrength) uiElements.bloomStrength.addEventListener('input', updatePostProcessing);
+            if (uiElements.bloomRadius) uiElements.bloomRadius.addEventListener('input', updatePostProcessing);
+            if (uiElements.fxVignette) uiElements.fxVignette.addEventListener('change', updatePostProcessing);
+            if (uiElements.fxChromatic) uiElements.fxChromatic.addEventListener('change', updatePostProcessing);
+            if (uiElements.fxGrain) uiElements.fxGrain.addEventListener('change', updatePostProcessing);
+            if (uiElements.modeFunction) uiElements.modeFunction.addEventListener('click', () => setModeUI('function'));
+            if (uiElements.modeParametric) uiElements.modeParametric.addEventListener('click', () => setModeUI('parametric'));
+            if (uiElements.modeCurve) uiElements.modeCurve.addEventListener('click', () => setModeUI('curve'));
+
+            attach('tool-translate', 'click', () => setTransformMode('translate'));
+            attach('tool-rotate', 'click', () => setTransformMode('rotate'));
+            attach('tool-scale', 'click', () => setTransformMode('scale'));
+            attach('tool-none', 'click', () => setTransformMode('none'));
+
+            if (uiElements.flipX) uiElements.flipX.addEventListener('click', () => flipActiveLayer('x'));
+            if (uiElements.flipY) uiElements.flipY.addEventListener('click', () => flipActiveLayer('y'));
+            if (uiElements.flipZ) uiElements.flipZ.addEventListener('click', () => flipActiveLayer('z'));
+
+            attach('theme-btn', 'click', toggleTheme);
+            attach('learn-btn', 'click', showTutorialModal);
+            const learnBtn = getEl('learn-btn');
+            if (learnBtn) {
+                const clearLearnHighlight = () => learnBtn.classList.remove('learn-highlight');
+                learnBtn.addEventListener('click', clearLearnHighlight);
+                setTimeout(clearLearnHighlight, 12000);
+            }
+            attach('tutorial-close', 'click', hideTutorialModal);
+            attach('tutorial-next', 'click', nextStep);
+            attach('tutorial-prev', 'click', prevStep);
+            attach('screenshot-btn', 'click', takeScreenshot);
+            attach('gif-btn', 'click', toggleGifRecording);
+            const animEffectEl = getEl('anim-effect');
+            if (animEffectEl) animEffectEl.addEventListener('change', updateAnimEffect);
+            attach('save-btn', 'click', saveScene);
+            attach('share-btn', 'click', shareURL);
+            const loadFileInput = getEl('load-file');
+            attach('load-btn', 'click', () => loadFileInput && loadFileInput.click());
+            if (loadFileInput) loadFileInput.addEventListener('change', (e) => { if (e.target.files[0]) loadSceneFromFile(e.target.files[0]); });
+
+            if (uiElements.style) uiElements.style.addEventListener('change', updateActiveLayerMaterialOnly);
+            if (uiElements.pattern) uiElements.pattern.addEventListener('change', updateActiveLayerMaterialOnly);
+            if (uiElements.opacity) uiElements.opacity.addEventListener('input', updateActiveLayerMaterialOnly);
+
+            ['posX', 'posY', 'posZ'].forEach(key => {
+                if (uiElements[key]) {
+                    uiElements[key].addEventListener('input', updateActiveLayerPosition);
+                }
+            });
+
+            if (uiElements.colorLow) uiElements.colorLow.addEventListener('input', updateActiveLayerColors);
+            if (uiElements.colorHigh) uiElements.colorHigh.addEventListener('input', updateActiveLayerColors);
+
+            if (uiElements.closedShape) {
+                uiElements.closedShape.addEventListener('change', () => {
+                    const layer = layers.find(l => l.id === activeLayerId);
+                    if (layer) {
+                        layer.closedShape = uiElements.closedShape.checked;
+                        buildLayerMesh(layer);
+                    }
+                });
+            }
+            if (uiElements.useEquationAnim) {
+                uiElements.useEquationAnim.addEventListener('change', () => {
+                    const layer = layers.find(l => l.id === activeLayerId);
+                    if (layer) {
+                        layer.useEquationAnim = uiElements.useEquationAnim.checked;
+                        layer.dirty = true;
+                    }
+                });
+            }
+
+            if (uiElements.autoRotate) {
+                uiElements.autoRotate.addEventListener('change', (e) => {
+                    controls.autoRotate = e.target.checked;
+                    controls.autoRotateSpeed = 2.0;
+                });
+            }
+
+            const syncScale = (axis, val) => {
+                const numInput = uiElements[`scale${axis.toUpperCase()}`];
+                const slider = uiElements[`sliderScale${axis.toUpperCase()}`];
+                if (numInput) numInput.value = val;
+                if (slider) slider.value = val;
+                updateActiveLayerTransform();
+            };
+            ['x', 'y', 'z'].forEach(axis => {
+                const slider = uiElements[`sliderScale${axis.toUpperCase()}`];
+                const numInput = uiElements[`scale${axis.toUpperCase()}`];
+                if (slider) slider.addEventListener('input', (e) => syncScale(axis, e.target.value));
+                if (numInput) numInput.addEventListener('input', (e) => syncScale(axis, e.target.value));
+            });
+
+            attach('play-btn', 'click', (e) => {
+                isPlaying = !isPlaying;
+                e.target.textContent = isPlaying ? '\u23F8' : '\u25B6';
+                e.target.classList.toggle('active', isPlaying);
+            });
+
+            if (uiElements.hidePanelBtn) {
+                uiElements.hidePanelBtn.addEventListener('click', () => {
+                    if (uiElements.uiPanel) uiElements.uiPanel.classList.add('minimized');
+                    if (uiElements.togglePanelBtn) uiElements.togglePanelBtn.classList.add('visible');
+                });
+            }
+            if (uiElements.togglePanelBtn) {
+                uiElements.togglePanelBtn.addEventListener('click', () => {
+                    if (uiElements.uiPanel) uiElements.uiPanel.classList.remove('minimized');
+                    uiElements.togglePanelBtn.classList.remove('visible');
+                });
+            }
+
+            const loader = getEl('loader');
+            if (loader) {
+                loader.style.opacity = '0';
+                setTimeout(() => loader.remove(), 500);
+            }
+
+            animate();
+        }
+
+        // ========== PRESET BROWSER FUNCTIONALITY ==========
+        function initPresetBrowser() {
+            renderPresetTabs();
+            renderPresetGrid();
+
+            if (uiElements.presetSearch) {
+                uiElements.presetSearch.addEventListener('input', (e) => {
+                    renderPresetGrid(e.target.value);
+                });
+            }
+
+            // Update count
+            if (uiElements.presetCount) {
+                uiElements.presetCount.textContent = `${shapeDatabase.length} shapes`;
+            }
+        }
+
+        const win1252ToByte = {
+            0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84, 0x2026: 0x85,
+            0x2020: 0x86, 0x2021: 0x87, 0x02C6: 0x88, 0x2030: 0x89, 0x0160: 0x8A,
+            0x2039: 0x8B, 0x0152: 0x8C, 0x017D: 0x8E, 0x2018: 0x91, 0x2019: 0x92,
+            0x201C: 0x93, 0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97,
+            0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B, 0x0153: 0x9C,
+            0x017E: 0x9E, 0x0178: 0x9F
+        };
+
+        function normalizeIcon(icon) {
+            if (!icon) return icon;
+            let needsFix = false;
+            for (let i = 0; i < icon.length; i++) {
+                const code = icon.charCodeAt(i);
+                if (code >= 0x80 && code <= 0xFF) {
+                    needsFix = true;
+                    break;
+                }
+                if (win1252ToByte[code] != null) {
+                    needsFix = true;
+                    break;
+                }
+            }
+            if (!needsFix) return icon;
+            try {
+                const bytes = [];
+                for (const ch of icon) {
+                    const codePoint = ch.codePointAt(0);
+                    if (codePoint <= 0xFF) {
+                        bytes.push(codePoint);
+                    } else if (win1252ToByte[codePoint] != null) {
+                        bytes.push(win1252ToByte[codePoint]);
+                    } else {
+                        return icon;
+                    }
+                }
+                const hex = bytes.map(b => '%' + b.toString(16).padStart(2, '0')).join('');
+                const decoded = decodeURIComponent(hex);
+                return decoded.includes('\uFFFD') ? icon : decoded;
+            } catch (e) {
+                return icon;
+            }
+        }
+
+        
+        const useAsciiIcons = true;
+
+        function asciiIconFor(label) {
+            if (!label) return '*';
+            const words = label.match(/[A-Za-z0-9]+/g) || [];
+            if (!words.length) return '*';
+            if (words.length == 1) {
+                return words[0].slice(0, 2).toUpperCase();
+            }
+            return (words[0][0] + words[1][0]).toUpperCase();
+        }
+
+        function resolveIcon(label, icon) {
+            if (useAsciiIcons) return asciiIconFor(label);
+            if (typeof normalizeIcon == 'function') return normalizeIcon(icon);
+            return icon;
+        }
+
+
+        function renderPresetTabs() {
+            if (!uiElements.presetTabs) return;
+            uiElements.presetTabs.innerHTML = '';
+
+            categories.forEach(cat => {
+                const tab = document.createElement('button');
+                tab.className = `preset-tab ${cat.id === currentCategory ? 'active' : ''}`;
+                const icon = resolveIcon(cat.name, cat.icon);
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'preset-tab-icon';
+                if (useAsciiIcons) {
+                    iconSpan.textContent = icon;
+                } else {
+                    iconSpan.innerHTML = icon;
+                }
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'preset-tab-name';
+                nameSpan.textContent = cat.name;
+                tab.innerHTML = '';
+                tab.appendChild(iconSpan);
+                tab.appendChild(document.createTextNode(' '));
+                tab.appendChild(nameSpan);
+                tab.onclick = () => {
+                    currentCategory = cat.id;
+                    renderPresetTabs();
+                    renderPresetGrid();
+                };
+                uiElements.presetTabs.appendChild(tab);
+            });
+        }
+
+        
+        function renderPresetGrid(searchQuery = '') {
+            if (!uiElements.presetGrid) return;
+            uiElements.presetGrid.innerHTML = '';
+
+            const query = searchQuery.toLowerCase().trim();
+            const filtered = shapeDatabase.filter(shape => {
+                const matchesCategory = currentCategory === 'all' || shape.category === currentCategory;
+                const matchesSearch = !query ||
+                    shape.name.toLowerCase().includes(query) ||
+                    shape.keys.some(k => k.includes(query));
+                return matchesCategory && matchesSearch;
+            });
+
+            filtered.forEach(shape => {
+                const item = document.createElement('div');
+                item.className = 'preset-item';
+                const icon = resolveIcon(shape.name, shape.icon);
+                const iconEl = document.createElement('div');
+                iconEl.className = 'preset-icon';
+                if (useAsciiIcons) {
+                    iconEl.textContent = icon;
+                } else {
+                    iconEl.innerHTML = icon;
+                }
+                const nameEl = document.createElement('div');
+                nameEl.className = 'preset-name';
+                nameEl.textContent = shape.name;
+                item.appendChild(iconEl);
+                item.appendChild(nameEl);
+                item.onclick = () => addShapeFromPreset(shape);
+                item.title = shape.keys.join(', ');
+                uiElements.presetGrid.appendChild(item);
+            });
+
+            // Show message if no results
+            if (filtered.length === 0) {
+                const noResults = document.createElement('div');
+                noResults.style.cssText = 'grid-column: 1/-1; text-align: center; padding: 20px; color: var(--text-muted);';
+                noResults.textContent = 'No shapes found';
+                uiElements.presetGrid.appendChild(noResults);
+            }
+        }
+
+        function addShapeFromPreset(shape) {
+            const config = {
+                type: shape.type,
+                name: shape.name,
+                eq: shape.eq || '',
+                x: shape.x || 'u',
+                y: shape.y || 'v',
+                z: shape.z || '0',
+                uRange: shape.uRange,
+                vRange: shape.vRange,
+                cLow: shape.cLow,
+                cHigh: shape.cHigh
+            };
+            addLayer(config);
+        }
+
+        function updateActiveLayerPosition() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer || !layer.root) return;
+
+            layer.posX = parseFloat(uiElements.posX?.value) || 0;
+            layer.posY = parseFloat(uiElements.posY?.value) || 0;
+            layer.posZ = parseFloat(uiElements.posZ?.value) || 0;
+
+            layer.root.position.set(layer.posX, layer.posY, layer.posZ);
+        }
+
+        function updateActiveLayerColors() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer) return;
+
+            layer.colorLow = uiElements.colorLow?.value || '#3b82f6';
+            layer.colorHigh = uiElements.colorHigh?.value || '#60a5fa';
+            if (layer.type === 'curve' && layer.root) {
+                const color = new THREE.Color(layer.colorLow);
+                layer.root.traverse((child) => {
+                    if (child.isLine || child.isMesh) {
+                        if (child.material?.color) child.material.color = color;
+                        if (child.material) child.material.needsUpdate = true;
+                    }
+                });
+            } else {
+                layer.dirty = true;
+            }
+        }
+
+        function showError(msg) {
+            if (uiElements.error) {
+                uiElements.error.textContent = msg;
+                setTimeout(() => { if (uiElements.error) uiElements.error.textContent = ''; }, 5000);
+            }
+        }
+
+        let activeEquationInput = null;
+
+        function updateEquationStatus(message) {
+            if (uiElements.equationStatus) uiElements.equationStatus.textContent = message || '';
+        }
+
+        function validateEquationInput(expr, args) {
+            const cleaned = (expr || '').trim();
+            if (!cleaned) {
+                updateEquationStatus('Click a field above, then use the chips to insert helpers.');
+                return;
+            }
+            const fn = createFunction(cleaned, args);
+            if (fn) {
+                updateEquationStatus('Looks good. Use Apply Equations to update the surface.');
+            } else {
+                updateEquationStatus('Check syntax: use * for multiplication and pi for constants.');
+            }
+        }
+
+        function registerEquationInput(el, args) {
+            if (!el) return;
+            el.addEventListener('focus', () => {
+                activeEquationInput = { el, args };
+                validateEquationInput(el.value, args);
+            });
+            el.addEventListener('input', () => validateEquationInput(el.value, args));
+        }
+
+        function insertEquationToken(token) {
+            let target = activeEquationInput ? activeEquationInput.el : null;
+            let args = activeEquationInput ? activeEquationInput.args : null;
+            if (!target) {
+                target = uiElements.eqZ || uiElements.eqParamX || uiElements.eqCurveX;
+                args = ['x', 'y', 't'];
+            }
+            if (!target) return;
+            const start = target.selectionStart ?? target.value.length;
+            const end = target.selectionEnd ?? target.value.length;
+            const insertText = token;
+            target.value = target.value.slice(0, start) + insertText + target.value.slice(end);
+            let cursor = start + insertText.length;
+            if (insertText.endsWith('()')) cursor = start + insertText.length - 1;
+            target.focus();
+            if (target.setSelectionRange) target.setSelectionRange(cursor, cursor);
+            validateEquationInput(target.value, args || ['x', 'y', 't']);
+        }
+
+        function createVariableUI(name, defaultVal) {
+            const row = document.createElement('div');
+            row.className = 'var-row';
+            row.innerHTML = `<div class="var-label">${name}</div><input type="range" min="-10" max="10" step="0.1" value="${defaultVal}"><input type="number" class="var-val" value="${defaultVal}">`;
+            const range = row.querySelector('input[type=range]');
+            const num = row.querySelector('input[type=number]');
+            const update = (v) => { userVariables[name] = parseFloat(v); range.value = v; num.value = v; layers.forEach(l => l.dirty = true); };
+            range.addEventListener('input', (e) => update(e.target.value));
+            num.addEventListener('input', (e) => update(e.target.value));
+            if (uiElements.varsContainer) uiElements.varsContainer.appendChild(row);
+        }
+
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+            const isLight = document.body.classList.contains('light-mode');
+            const newBg = isLight ? 0xf1f5f9 : 0x0f172a;
+            scene.background = new THREE.Color(newBg);
+            scene.fog = new THREE.FogExp2(newBg, 0.015);
+            scene.remove(gridHelper);
+            gridHelper = new THREE.GridHelper(20, 20, isLight ? 0x888888 : 0x555555, isLight ? 0xcccccc : 0x222222);
+            scene.add(gridHelper);
+        }
+
+        function takeScreenshot() {
+            renderer.render(scene, camera);
+            const link = document.createElement('a');
+            link.download = 'Vitreous3D_Capture.png';
+            link.href = renderer.domElement.toDataURL('image/png');
+            link.click();
+        }
+
+        function setModeUI(mode) {
+            if (uiElements.modeFunction) uiElements.modeFunction.classList.toggle('active', mode === 'function');
+            if (uiElements.modeParametric) uiElements.modeParametric.classList.toggle('active', mode === 'parametric');
+            if (uiElements.modeCurve) uiElements.modeCurve.classList.toggle('active', mode === 'curve');
+            if (uiElements.uiFunction) uiElements.uiFunction.style.display = mode === 'function' ? 'block' : 'none';
+            if (uiElements.uiParametric) uiElements.uiParametric.style.display = mode === 'parametric' ? 'block' : 'none';
+            if (uiElements.uiCurve) uiElements.uiCurve.style.display = mode === 'curve' ? 'block' : 'none';
+        }
+
+        function setTransformMode(mode) {
+            currentTransformMode = mode;
+            ['translate', 'rotate', 'scale', 'none'].forEach(m => {
+                const btn = document.getElementById('tool-' + m);
+                if (btn) btn.classList.toggle('selected', m === mode);
+            });
+
+            if (mode === 'none') {
+                transformControl.detach();
+            } else {
+                const layer = layers.find(l => l.id === activeLayerId);
+                if (layer && layer.root) {
+                    transformControl.setMode(mode);
+                    transformControl.attach(layer.root);
+                }
+            }
+        }
+
+        function onCanvasClick(event) {
+            if (isTransforming) return;
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            let allMeshes = [];
+            layers.forEach(l => l.root?.traverse(c => { if(c.isMesh) allMeshes.push(c); }));
+            const intersects = raycaster.intersectObjects(allMeshes);
+            if (intersects.length > 0) {
+                const layer = layers.find(l => {
+                    let found = false;
+                    l.root?.traverse(c => { if(c === intersects[0].object) found = true; });
+                    return found;
+                });
+                if (layer && layer.id !== activeLayerId) setActiveLayer(layer.id);
+            }
+        }
+
+        function updateLightPosition() {
+            if (!mainLight || !uiElements.lightAngle || !uiElements.lightElevation) return;
+            const r = 30;
+            const az = (parseFloat(uiElements.lightAngle.value) * Math.PI) / 180;
+            const el = (parseFloat(uiElements.lightElevation.value) * Math.PI) / 180;
+            const cosEl = Math.cos(el);
+            mainLight.position.set(r * cosEl * Math.sin(az), r * Math.sin(el), r * cosEl * Math.cos(az));
+        }
+
+        function addLayer(config = {}) {
+            const id = nextLayerId++;
+            const layer = {
+                id,
+                name: config.name || `Object ${id}`,
+                type: config.type || 'function',
+                equation: config.eq || '0',
+                rangeX: 10, rangeY: 10,
+                pX: config.x || 'u', pY: config.y || 'v', pZ: config.z || '0',
+                uMin: config.uRange ? config.uRange[0] : 0, uMax: config.uRange ? config.uRange[1] : 6.28,
+                vMin: config.vRange ? config.vRange[0] : 0, vMax: config.vRange ? config.vRange[1] : 6.28,
+                curveX: config.curveX || 'cos(u)',
+                curveY: config.curveY || 'sin(u)',
+                curveZ: config.curveZ || 'u/6',
+                curveUMin: config.curveUMin ?? 0,
+                curveUMax: config.curveUMax ?? 6.28,
+                curveSegments: config.curveSegments || 200,
+                curveRadius: config.curveRadius ?? 0.05,
+                curveClosed: config.curveClosed || false,
+                style: config.style || 'plastic', pattern: config.pattern || 'none', opacity: 1,
+                colorLow: config.cLow || '#3b82f6', colorHigh: config.cHigh || '#60a5fa',
+                posX: 0, posY: 0, posZ: 0, rotX: 0, rotY: 0, rotZ: 0, scaleX: 1, scaleY: 1, scaleZ: 1,
+                isFlippedX: false, isFlippedY: false, isFlippedZ: false, animMode: 'none', useEquationAnim: true,
+                closedShape: false, root: null, geometry: null, dirty: true
+            };
+            layers.push(layer);
+            buildLayerMesh(layer);
+            renderLayerList();
+            setActiveLayer(id);
+        }
+
+        function removeLayer(id) {
+            const idx = layers.findIndex(l => l.id === id);
+            if (idx > -1) {
+                const l = layers[idx];
+                if(activeLayerId === id) transformControl.detach();
+                if(l.root) {
+                    scene.remove(l.root);
+                    l.root.traverse(c => {
+                        if(c.isMesh) {
+                            if (c.geometry) c.geometry.dispose();
+                            if (c.material) c.material.dispose();
+                        }
+                    });
+                }
+                layers.splice(idx, 1);
+                if (layers.length > 0) {
+                    setActiveLayer(layers[Math.min(idx, layers.length - 1)].id);
+                } else {
+                    activeLayerId = null;
+                    if (uiElements.layerControls) uiElements.layerControls.style.display = 'none';
+                    if (uiElements.emptyState) uiElements.emptyState.style.display = 'block';
+                }
+                renderLayerList();
+            }
+        }
+
+        function setActiveLayer(id) {
+            activeLayerId = id;
+            const layer = layers.find(l => l.id === id);
+            if (!layer) return;
+
+            if (uiElements.layerControls) uiElements.layerControls.style.display = 'block';
+            if (uiElements.emptyState) uiElements.emptyState.style.display = 'none';
+
+            setModeUI(layer.type);
+            if (uiElements.eqZ) uiElements.eqZ.value = layer.equation;
+            if (uiElements.eqParamX) uiElements.eqParamX.value = layer.pX;
+            if (uiElements.eqParamY) uiElements.eqParamY.value = layer.pY;
+            if (uiElements.eqParamZ) uiElements.eqParamZ.value = layer.pZ;
+            if (uiElements.eqCurveX) uiElements.eqCurveX.value = layer.curveX;
+            if (uiElements.eqCurveY) uiElements.eqCurveY.value = layer.curveY;
+            if (uiElements.eqCurveZ) uiElements.eqCurveZ.value = layer.curveZ;
+            if (uiElements.rangeX) uiElements.rangeX.value = layer.rangeX;
+            if (uiElements.rangeY) uiElements.rangeY.value = layer.rangeY;
+            if (uiElements.uMin) uiElements.uMin.value = layer.uMin;
+            if (uiElements.uMax) uiElements.uMax.value = layer.uMax;
+            if (uiElements.vMin) uiElements.vMin.value = layer.vMin;
+            if (uiElements.vMax) uiElements.vMax.value = layer.vMax;
+            if (uiElements.curveUMin) uiElements.curveUMin.value = layer.curveUMin;
+            if (uiElements.curveUMax) uiElements.curveUMax.value = layer.curveUMax;
+            if (uiElements.curveSegments) uiElements.curveSegments.value = layer.curveSegments;
+            if (uiElements.curveRadius) uiElements.curveRadius.value = layer.curveRadius;
+            if (uiElements.curveClosed) uiElements.curveClosed.checked = layer.curveClosed;
+            if (uiElements.style) uiElements.style.value = layer.style;
+            if (uiElements.pattern) uiElements.pattern.value = layer.pattern;
+            if (uiElements.opacity) uiElements.opacity.value = layer.opacity;
+            if (uiElements.colorLow) uiElements.colorLow.value = layer.colorLow;
+            if (uiElements.colorHigh) uiElements.colorHigh.value = layer.colorHigh;
+            if (uiElements.closedShape) uiElements.closedShape.checked = layer.closedShape;
+            if (uiElements.useEquationAnim) uiElements.useEquationAnim.checked = layer.useEquationAnim;
+
+            updateUIFromLayer(layer);
+            renderLayerList();
+
+            if (currentTransformMode !== 'none') {
+                transformControl.setMode(currentTransformMode);
+                transformControl.attach(layer.root);
+            }
+        }
+
+        function updateUIFromLayer(layer) {
+            if (uiElements.posX) uiElements.posX.value = layer.posX;
+            if (uiElements.posY) uiElements.posY.value = layer.posY;
+            if (uiElements.posZ) uiElements.posZ.value = layer.posZ;
+            if (uiElements.scaleX) uiElements.scaleX.value = layer.scaleX;
+            if (uiElements.scaleY) uiElements.scaleY.value = layer.scaleY;
+            if (uiElements.scaleZ) uiElements.scaleZ.value = layer.scaleZ;
+            if (uiElements.sliderScaleX) uiElements.sliderScaleX.value = layer.scaleX;
+            if (uiElements.sliderScaleY) uiElements.sliderScaleY.value = layer.scaleY;
+            if (uiElements.sliderScaleZ) uiElements.sliderScaleZ.value = layer.scaleZ;
+
+            if (uiElements.flipX) uiElements.flipX.classList.toggle('selected', layer.isFlippedX);
+            if (uiElements.flipY) uiElements.flipY.classList.toggle('selected', layer.isFlippedY);
+            if (uiElements.flipZ) uiElements.flipZ.classList.toggle('selected', layer.isFlippedZ);
+        }
+
+        function updateActiveLayerTransform() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer || !layer.root) return;
+
+            layer.scaleX = Math.abs(parseFloat(uiElements.scaleX?.value)) || 1;
+            layer.scaleY = Math.abs(parseFloat(uiElements.scaleY?.value)) || 1;
+            layer.scaleZ = Math.abs(parseFloat(uiElements.scaleZ?.value)) || 1;
+
+            layer.root.scale.set(
+                layer.scaleX * (layer.isFlippedX ? -1 : 1),
+                layer.scaleY * (layer.isFlippedY ? -1 : 1),
+                layer.scaleZ * (layer.isFlippedZ ? -1 : 1)
+            );
+        }
+
+        function flipActiveLayer(axis) {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer) return;
+            if (axis === 'x') layer.isFlippedX = !layer.isFlippedX;
+            if (axis === 'y') layer.isFlippedY = !layer.isFlippedY;
+            if (axis === 'z') layer.isFlippedZ = !layer.isFlippedZ;
+            updateActiveLayerTransform();
+            updateUIFromLayer(layer);
+        }
+
+        const FUNCTION_NAMES = new Set([
+            'abs', 'acos', 'acosh', 'asin', 'asinh', 'atan', 'atan2', 'atanh',
+            'cbrt', 'ceil', 'clz32', 'cos', 'cosh', 'exp', 'expm1', 'floor',
+            'fround', 'hypot', 'imul', 'log', 'log1p', 'log2', 'log10', 'max',
+            'min', 'pow', 'random', 'round', 'sign', 'sin', 'sinh', 'sqrt',
+            'tan', 'tanh', 'trunc', 'sec', 'csc', 'cot'
+        ]);
+        const FUNCTION_ALIASES = {
+            ln: 'log',
+            arcsin: 'asin',
+            arccos: 'acos',
+            arctan: 'atan'
+        };
+        const CONSTANT_ALIASES = {
+            pi: 'PI',
+            e: 'E',
+            tau: 'TAU',
+            phi: 'PHI'
+        };
+        const FUNCTION_NAMES_SORTED = Array.from(FUNCTION_NAMES).sort((a, b) => b.length - a.length);
+        const CONSTANT_NAMES_SORTED = Object.keys(CONSTANT_ALIASES).sort((a, b) => b.length - a.length);
+
+        function tokenizeEquation(expr) {
+            const tokens = [];
+            const re = /(\d*\.\d+|\d+\.?(?:[eE][+-]?\d+)?|[A-Za-z_][A-Za-z_0-9]*|\*\*|[()+\-*/%,])/g;
+            let match;
+            while ((match = re.exec(expr)) !== null) {
+                tokens.push(match[0]);
+            }
+            return tokens;
+        }
+
+        function splitCompositeIdentifier(ident, allowedIdentifiers, allowedSingles) {
+            const parts = [];
+            let rest = ident;
+            while (rest.length > 0) {
+                let matched = null;
+                for (const fn of FUNCTION_NAMES_SORTED) {
+                    if (rest.startsWith(fn)) {
+                        matched = fn;
+                        break;
+                    }
+                }
+                if (matched) {
+                    parts.push(matched);
+                    rest = rest.slice(matched.length);
+                    continue;
+                }
+                for (const name of CONSTANT_NAMES_SORTED) {
+                    if (rest.startsWith(name)) {
+                        parts.push(CONSTANT_ALIASES[name]);
+                        rest = rest.slice(name.length);
+                        matched = true;
+                        break;
+                    }
+                }
+                if (matched) continue;
+                if (allowedIdentifiers.has(rest)) {
+                    parts.push(rest);
+                    return parts;
+                }
+                const ch = rest[0];
+                if (allowedSingles.has(ch)) {
+                    parts.push(ch);
+                    rest = rest.slice(1);
+                    continue;
+                }
+                return null;
+            }
+            return parts;
+        }
+
+        function expandIdentifierToken(token, allowedIdentifiers, allowedSingles) {
+            let lower = token.toLowerCase();
+            if (FUNCTION_ALIASES[lower]) lower = FUNCTION_ALIASES[lower];
+            if (CONSTANT_ALIASES[lower]) return [CONSTANT_ALIASES[lower]];
+            if (allowedIdentifiers.has(lower)) return [lower];
+            if (FUNCTION_NAMES.has(lower)) return [lower];
+            if (/^[a-z]+$/.test(lower) && lower.length > 1) {
+                const parts = splitCompositeIdentifier(lower, allowedIdentifiers, allowedSingles);
+                if (parts) return parts;
+            }
+            return [lower];
+        }
+
+        function isNumberToken(token) {
+            return /^(?:\d*\.\d+|\d+\.?(?:[eE][+-]?\d+)?)$/.test(token);
+        }
+
+        function isIdentifierToken(token) {
+            return /^[A-Za-z_][A-Za-z_0-9]*$/.test(token);
+        }
+
+        function isFunctionToken(token) {
+            return FUNCTION_NAMES.has(token.toLowerCase());
+        }
+
+        function insertImplicitMultiplication(tokens) {
+            const out = [];
+            for (let i = 0; i < tokens.length; i++) {
+                const tok = tokens[i];
+                const next = tokens[i + 1];
+
+                if (isFunctionToken(tok) && next && next !== '(') {
+                    out.push(tok, '(');
+                    if ((next === '-' || next === '+') && tokens[i + 2]) {
+                        out.push(next, tokens[i + 2]);
+                        i += 2;
+                    } else {
+                        out.push(next);
+                        i += 1;
+                    }
+                    out.push(')');
+                    continue;
+                }
+
+                out.push(tok);
+
+                if (!next || tok === ',' || next === ',') continue;
+                const leftIsValue = isNumberToken(tok) || isIdentifierToken(tok) || tok === ')';
+                const rightIsValue = isNumberToken(next) || isIdentifierToken(next) || next === '(';
+                if (leftIsValue && rightIsValue && !isFunctionToken(tok)) {
+                    out.push('*');
+                }
+            }
+            return out.join('');
+        }
+
+        function normalizeEquation(expr, args) {
+            let cleaned = (expr || '').trim();
+            if (!cleaned) return '0';
+
+            cleaned = cleaned
+                .replace(/[\u2013\u2014\u2212]/g, '-')
+                .replace(/[\u00D7\u00B7]/g, '*')
+                .replace(/\u00F7/g, '/')
+                .replace(/\u03C0/g, 'pi')
+                .replace(/\u03C4/g, 'tau')
+                .replace(/\u03C6/g, 'phi');
+
+            const assignMatch = cleaned.match(/^\s*([xyz])\s*(\([^)]*\))?\s*=\s*(.+)$/i);
+            if (assignMatch) cleaned = assignMatch[3];
+
+            cleaned = cleaned.replace(/\^/g, '**');
+
+            const stripped = cleaned.replace(/\s+/g, '');
+            const tokens = tokenizeEquation(stripped);
+            if (tokens.join('') !== stripped) {
+                throw new Error('Unsupported characters in equation.');
+            }
+
+            const argNames = new Set(args.map(a => a.toLowerCase()));
+            const varNames = new Set(Object.keys(userVariables).map(v => v.toLowerCase()));
+            const allowedIdentifiers = new Set([...argNames, ...varNames, 'r', 'theta']);
+            const allowedSingles = new Set([...argNames, ...varNames, 'r']);
+
+            const expanded = [];
+            tokens.forEach((token) => {
+                if (isIdentifierToken(token)) {
+                    expanded.push(...expandIdentifierToken(token, allowedIdentifiers, allowedSingles));
+                } else {
+                    expanded.push(token);
+                }
+            });
+
+            return insertImplicitMultiplication(expanded);
+        }
+
+        function createFunction(expr, args) {
+            try {
+                const cleaned = normalizeEquation(expr, args);
+                const vars = Object.keys(userVariables);
+                const mathNames = Object.getOwnPropertyNames(Math);
+                const argNames = new Set(args.map(a => a.toLowerCase()));
+                let derived = 'const TAU = 2 * PI; const PHI = (1 + sqrt(5)) / 2;';
+                if (argNames.has('x') && argNames.has('y')) {
+                    derived += ' const r = sqrt(x*x + y*y); const theta = atan2(y, x);';
+                } else if (argNames.has('u') && argNames.has('v')) {
+                    derived += ' const r = sqrt(u*u + v*v); const theta = atan2(v, u);';
+                }
+                derived += ' const sec = (x) => 1 / cos(x); const csc = (x) => 1 / sin(x); const cot = (x) => 1 / tan(x);';
+                return new Function(
+                    ...args,
+                    'variables',
+                    `"use strict"; const {${mathNames.join(',')}} = Math; const {${vars.join(',')}} = variables; ${derived} return ${cleaned};`
+                );
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function sampleCurvePoints(layer, t, closeLine) {
+            const segments = Math.max(20, layer.curveSegments || 200);
+            const uMin = layer.curveUMin ?? 0;
+            const uMax = layer.curveUMax ?? 6.28;
+            const uRange = uMax - uMin || 1;
+            const points = [];
+            const fnX = layer.funcCurve?.x;
+            const fnY = layer.funcCurve?.y;
+            const fnZ = layer.funcCurve?.z;
+
+            for (let i = 0; i <= segments; i++) {
+                const u = uMin + (uRange * (i / segments));
+                let x = 0, y = 0, z = 0;
+                try {
+                    x = fnX ? fnX(u, t, userVariables) : 0;
+                    y = fnY ? fnY(u, t, userVariables) : 0;
+                    z = fnZ ? fnZ(u, t, userVariables) : 0;
+                    if (!isFinite(x) || !isFinite(y) || !isFinite(z)) { x = 0; y = 0; z = 0; }
+                } catch {
+                    x = 0; y = 0; z = 0;
+                }
+                points.push(new THREE.Vector3(x, z, y));
+            }
+
+            if (closeLine && layer.curveClosed && points.length > 1) {
+                points.push(points[0].clone());
+            }
+
+            return points;
+        }
+
+        function updateCurveGeometry(layer) {
+            const t = layer.useEquationAnim ? time : 0;
+            const segments = Math.max(20, layer.curveSegments || 200);
+            const isTube = layer.curveRadius > 0;
+
+            if (isTube) {
+                const points = sampleCurvePoints(layer, t, false);
+                const curve = new THREE.CatmullRomCurve3(points, layer.curveClosed);
+                const geo = new THREE.TubeGeometry(curve, segments, layer.curveRadius, 12, layer.curveClosed);
+                const oldGeometry = layer.geometry;
+                layer.root?.traverse((child) => {
+                    if (child.isMesh) {
+                        child.geometry = geo;
+                    }
+                });
+                if (oldGeometry) oldGeometry.dispose();
+                layer.geometry = geo;
+                return;
+            }
+
+            const points = sampleCurvePoints(layer, t, true);
+            const pointCount = points.length;
+            if (!layer.geometry || !layer.geometry.attributes?.position || layer.geometry.attributes.position.count !== pointCount) {
+                const geo = new THREE.BufferGeometry().setFromPoints(points);
+                const oldGeometry = layer.geometry;
+                layer.geometry = geo;
+                layer.root?.traverse((child) => {
+                    if (child.isLine) {
+                        child.geometry = geo;
+                    }
+                });
+                if (oldGeometry) oldGeometry.dispose();
+            } else {
+                const pos = layer.geometry.attributes.position;
+                for (let i = 0; i < pointCount; i++) {
+                    const p = points[i];
+                    pos.setXYZ(i, p.x, p.y, p.z);
+                }
+                pos.needsUpdate = true;
+            }
+        }
+
+        function buildLayerMesh(layer) {
+            if (layer.root) {
+                transformControl.detach();
+                scene.remove(layer.root);
+                layer.root.traverse(c => {
+                    if(c.isMesh) {
+                        if (c.geometry) c.geometry.dispose();
+                        if (c.material) c.material.dispose();
+                    }
+                });
+            }
+
+            layer.root = new THREE.Group();
+            const segments = 100;
+            const mat = createMaterial(layer.style, layer.opacity, layer.pattern);
+
+            if (layer.type === 'curve') {
+                layer.funcCurve = {
+                    x: createFunction(layer.curveX, ['u', 't']),
+                    y: createFunction(layer.curveY, ['u', 't']),
+                    z: createFunction(layer.curveZ, ['u', 't'])
+                };
+                if (!layer.funcCurve.x || !layer.funcCurve.y || !layer.funcCurve.z) {
+                    showError('Curve equations could not be parsed. Use u for the curve parameter and add * for multiplication.');
+                }
+                if (layer.curveRadius > 0) {
+                    const points = sampleCurvePoints(layer, 0, false);
+                    const curve = new THREE.CatmullRomCurve3(points, layer.curveClosed);
+                    layer.geometry = new THREE.TubeGeometry(curve, Math.max(20, layer.curveSegments || 200), layer.curveRadius, 12, layer.curveClosed);
+                    const curveMat = createMaterial(layer.style, layer.opacity, layer.pattern);
+                    curveMat.vertexColors = false;
+                    curveMat.color = new THREE.Color(layer.colorLow);
+                    const mesh = new THREE.Mesh(layer.geometry, curveMat);
+                    layer.root.add(mesh);
+                } else {
+                    const points = sampleCurvePoints(layer, 0, true);
+                    layer.geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    const lineMat = new THREE.LineBasicMaterial({ color: new THREE.Color(layer.colorLow), transparent: true, opacity: layer.opacity });
+                    const line = new THREE.Line(layer.geometry, lineMat);
+                    layer.root.add(line);
+                }
+            } else if (layer.type === 'function') {
+                layer.funcZ = createFunction(layer.equation, ['x', 'y', 't']);
+                if (!layer.funcZ) {
+                    showError('Equation could not be parsed. Try explicit z = f(x,y), add * for multiplication, or replace ^ with **.');
+                    layer.funcZ = (x, y, t) => 0;
+                }
+                layer.geometry = new THREE.PlaneGeometry(layer.rangeX*2, layer.rangeY*2, segments, segments).rotateX(-Math.PI/2);
+            } else {
+                layer.funcParam = {
+                    x: createFunction(layer.pX, ['u', 'v', 't']),
+                    y: createFunction(layer.pY, ['u', 'v', 't']),
+                    z: createFunction(layer.pZ, ['u', 'v', 't'])
+                };
+                if (!layer.funcParam.x || !layer.funcParam.y || !layer.funcParam.z) {
+                    showError('Parametric equations could not be parsed. Try explicit x=, y=, z= forms and add * for multiplication.');
+                }
+                layer.geometry = new ParametricGeometry((u, v, tgt) => {
+                    const uu = layer.uMin + u*(layer.uMax-layer.uMin);
+                    const vv = layer.vMin + v*(layer.vMax-layer.vMin);
+                    try {
+                        tgt.set(
+                            layer.funcParam.x ? layer.funcParam.x(uu,vv,0,userVariables) : 0,
+                            layer.funcParam.z ? layer.funcParam.z(uu,vv,0,userVariables) : 0,
+                            layer.funcParam.y ? layer.funcParam.y(uu,vv,0,userVariables) : 0
+                        );
+                    } catch { tgt.set(0,0,0); }
+                }, segments, segments);
+            }
+
+            if (layer.type !== 'curve') {
+                const count = layer.geometry.attributes.position.count;
+                layer.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+                layer.geometry.setAttribute('visibility', new THREE.BufferAttribute(new Float32Array(count), 1));
+
+                const top = new THREE.Mesh(layer.geometry, mat);
+                layer.root.add(top);
+
+                if (layer.closedShape) {
+                    const bot = new THREE.Mesh(layer.geometry, mat);
+                    bot.scale.y = -1;
+                    layer.root.add(bot);
+                }
+            }
+
+            layer.root.position.set(layer.posX, layer.posY, layer.posZ);
+            updateActiveLayerTransform();
+            scene.add(layer.root);
+            layer.dirty = true;
+            if (layer.type === 'curve') {
+                updateCurveGeometry(layer);
+            } else {
+                updateLayerGeometryOptimized(layer);
+            }
+        }
+
+        function applyEnvIntensityToMaterial(mat) {
+            if (!mat || !('envMapIntensity' in mat)) return;
+            const base = mat.userData?.envBaseIntensity ?? mat.envMapIntensity ?? 1;
+            if (!mat.userData) mat.userData = {};
+            mat.userData.envBaseIntensity = base;
+            mat.envMapIntensity = base * currentEnvIntensity;
+            mat.needsUpdate = true;
+        }
+
+        function applyEnvIntensityToLayer(layer) {
+            if (!layer?.root) return;
+            layer.root.traverse((child) => {
+                if (child.isMesh) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(applyEnvIntensityToMaterial);
+                    } else {
+                        applyEnvIntensityToMaterial(child.material);
+                    }
+                }
+            });
+        }
+
+        function applyEnvIntensity() {
+            layers.forEach(applyEnvIntensityToLayer);
+        }
+
+        function createMaterial(style, opacity, pattern) {
+            const usePattern = pattern !== 'none';
+            const baseOpts = { vertexColors: !usePattern, side: THREE.DoubleSide, transparent: true, opacity: parseFloat(opacity) };
+            if (usePattern) baseOpts.map = getPatternTexture(pattern);
+            let mat;
+            if (style === 'wireframe') {
+                mat = new THREE.MeshBasicMaterial({ wireframe: true, color: 0x888888, ...baseOpts });
+            } else if (style === 'glass') {
+                mat = new THREE.MeshPhysicalMaterial({...baseOpts, transmission: 0.9, thickness: 0.5, roughness: 0.1, ior: 1.5, clearcoat: 1, clearcoatRoughness: 0.1, envMapIntensity: 1});
+            } else if (style === 'water') {
+                mat = new THREE.MeshPhongMaterial({...baseOpts, shininess: 100, specular: new THREE.Color(0x4488ff), reflectivity: 0.8});
+            } else if (style === 'matte') {
+                mat = new THREE.MeshStandardMaterial({...baseOpts, metalness: 0.0, roughness: 0.9, envMapIntensity: 0.4});
+            } else if (style === 'ceramic') {
+                mat = new THREE.MeshPhysicalMaterial({...baseOpts, metalness: 0.1, roughness: 0.35, clearcoat: 0.8, clearcoatRoughness: 0.2, envMapIntensity: 1.1});
+            } else if (style === 'rubber') {
+                mat = new THREE.MeshStandardMaterial({...baseOpts, metalness: 0.0, roughness: 0.95, envMapIntensity: 0.2});
+            } else if (style === 'carbon') {
+                mat = new THREE.MeshStandardMaterial({...baseOpts, metalness: 0.6, roughness: 0.4, color: 0x111111, envMapIntensity: 1.4});
+            } else if (style === 'chrome') {
+                mat = new THREE.MeshPhysicalMaterial({...baseOpts, metalness: 1.0, roughness: 0.05, color: 0xcccccc, envMapIntensity: 2.0});
+            } else if (style === 'gold') {
+                mat = new THREE.MeshPhysicalMaterial({...baseOpts, metalness: 1.0, roughness: 0.2, color: 0xffd700, envMapIntensity: 1.5});
+            } else if (style === 'copper') {
+                mat = new THREE.MeshPhysicalMaterial({...baseOpts, metalness: 1.0, roughness: 0.3, color: 0xb87333, envMapIntensity: 1.2});
+            } else if (style === 'marble') {
+                mat = new THREE.MeshPhysicalMaterial({...baseOpts, metalness: 0.0, roughness: 0.4, color: 0xf5f5f5, clearcoat: 0.5, clearcoatRoughness: 0.3});
+            } else if (style === 'obsidian') {
+                mat = new THREE.MeshPhysicalMaterial({...baseOpts, metalness: 0.1, roughness: 0.05, color: 0x1a1a2e, transmission: 0.3, thickness: 1.0, ior: 2.4});
+            } else if (style === 'pearl') {
+                mat = new THREE.MeshPhysicalMaterial({...baseOpts, metalness: 0.0, roughness: 0.2, color: 0xffeef0, iridescence: 1.0, iridescenceIOR: 1.3, sheen: 1.0, sheenColor: new THREE.Color(0xffc0cb)});
+            } else if (style === 'ice') {
+                mat = new THREE.MeshPhysicalMaterial({...baseOpts, metalness: 0.0, roughness: 0.1, color: 0xaaddff, transmission: 0.8, thickness: 0.8, ior: 1.31});
+            } else if (style === 'neon') {
+                mat = new THREE.MeshPhysicalMaterial({...baseOpts, metalness: 0.0, roughness: 0.0, emissive: new THREE.Color(0x00ff88), emissiveIntensity: 2.0, color: 0x00ff88});
+            } else if (style === 'holographic') {
+                mat = new THREE.MeshPhysicalMaterial({...baseOpts, metalness: 0.5, roughness: 0.1, color: 0xffffff, iridescence: 1.0, iridescenceIOR: 2.0, specularIntensity: 1.0});
+            } else if (style === 'lava') {
+                mat = new THREE.MeshPhysicalMaterial({...baseOpts, metalness: 0.0, roughness: 0.8, color: 0x220000, emissive: new THREE.Color(0xff4400), emissiveIntensity: 1.5});
+            } else {
+                mat = new THREE.MeshPhongMaterial({ ...baseOpts, shininess: 50 });
+            }
+            mat.onBeforeCompile = (s) => {
+                s.vertexShader = s.vertexShader.replace("#include <common>", `#include <common>
+attribute float visibility;varying float vVisibility;`).replace("#include <begin_vertex>", `#include <begin_vertex>
+vVisibility = visibility;`);
+                s.fragmentShader = s.fragmentShader.replace("#include <common>", `#include <common>
+varying float vVisibility;`).replace("#include <alphatest_fragment>", `#include <alphatest_fragment>
+if (vVisibility < 0.5) discard;`);
+            };
+            applyEnvIntensityToMaterial(mat);
+            return mat;
+        }
+
+        function getPatternTexture(type) {
+            if (textureCache.has(type)) return textureCache.get(type);
+            const canvas = document.createElement('canvas'); canvas.width = 256; canvas.height = 256;
+            const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0,0,256,256);
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 8;
+
+            if (type === 'checker') {
+                ctx.fillStyle = '#ccc'; ctx.fillRect(0,0,128,128); ctx.fillRect(128,128,128,128);
+            } else if (type === 'grid') {
+                ctx.strokeRect(0,0,256,256);
+                ctx.beginPath();
+                ctx.moveTo(128, 0); ctx.lineTo(128, 256);
+                ctx.moveTo(0, 128); ctx.lineTo(256, 128);
+                ctx.stroke();
+            } else if (type === 'bricks') {
+                ctx.fillStyle = '#b44'; ctx.fillRect(0,0,256,256);
+                ctx.strokeStyle = '#eee'; ctx.lineWidth = 4;
+                ctx.beginPath();
+                for(let i=0; i<=4; i++){
+                    ctx.moveTo(0, i*64); ctx.lineTo(256, i*64);
+                }
+                for(let i=0; i<4; i++){
+                    for(let j=0; j<2; j++){
+                        let o = (i % 2) * 64;
+                        ctx.moveTo(j*128 + o, i*64);
+                        ctx.lineTo(j*128 + o, i*64 + 64);
+                    }
+                }
+                ctx.stroke();
+            } else if (type === 'ripples') {
+                for(let i=1; i<10; i++) { ctx.beginPath(); ctx.arc(128,128,i*20,0,6.28); ctx.stroke(); }
+            }
+
+            const tex = new THREE.CanvasTexture(canvas); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.repeat.set(4,4);
+            textureCache.set(type, tex);
+            return tex;
+        }
+
+        
+        // ============= PERFORMANCE OPTIMIZATIONS =============
+
+        // Web Worker for heavy geometry calculations
+        const workerCode = `
+            self.onmessage = function(e) {
+                const { type, data } = e.data;
+
+                if (type === 'computeGeometry') {
+                    const { positions, uvs, eqType, eqStr, params, time, uMin, uMax, vMin, vMax, vars } = data;
+                    const count = positions.length / 3;
+                    const results = new Float32Array(count * 4); // x, y, z, visibility
+
+                    // Create function from equation string
+                    let fn;
+                    try {
+                        if (eqType === 'function') {
+                            fn = new Function('x', 'y', 't', 'v',
+                                'with(Math){with(v){return ' + eqStr + '}}');
+                        }
+                    } catch(e) {
+                        // Return zeros on error
+                        self.postMessage({ type: 'result', results: results.buffer }, [results.buffer]);
+                        return;
+                    }
+
+                    for (let i = 0; i < count; i++) {
+                        const idx = i * 3;
+                        const x = positions[idx];
+                        const z = positions[idx + 2];
+                        let visibility = 1.0;
+                        let val = 0;
+
+                        try {
+                            val = fn(x, z, time, vars);
+                            if (!isFinite(val)) { val = 0; visibility = 0; }
+                        } catch {
+                            visibility = 0;
+                        }
+
+                        results[i * 4] = x;
+                        results[i * 4 + 1] = val;
+                        results[i * 4 + 2] = z;
+                        results[i * 4 + 3] = visibility;
+                    }
+
+                    self.postMessage({ type: 'result', results: results.buffer }, [results.buffer]);
+                }
+            };
+        `;
+
+        // Create worker from blob
+        let geometryWorker = null;
+        try {
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            geometryWorker = new Worker(URL.createObjectURL(blob));
+        } catch (e) {
+            console.warn('Web Worker not available, using main thread');
+        }
+
+        // Geometry cache to avoid redundant calculations
+        const geometryCache = new Map();
+
+        // Throttle updates - only process every N ms
+        let lastUpdateTime = 0;
+        const UPDATE_INTERVAL = 16; // ~60fps target
+
+        // LOD system - reduce segments based on performance
+        let currentLOD = 1.0; // 1.0 = full quality, 0.5 = half
+        let frameCount = 0;
+        let lastFpsCheck = performance.now();
+        let currentFps = 60;
+
+        function adjustLOD() {
+            frameCount++;
+            const now = performance.now();
+            if (now - lastFpsCheck >= 1000) {
+                currentFps = frameCount;
+                frameCount = 0;
+                lastFpsCheck = now;
+
+                // Adjust LOD based on FPS
+                if (currentFps < 30 && currentLOD > 0.25) {
+                    currentLOD = Math.max(0.25, currentLOD - 0.1);
+                    console.log('Reducing quality for performance, LOD:', currentLOD);
+                } else if (currentFps > 55 && currentLOD < 1.0) {
+                    currentLOD = Math.min(1.0, currentLOD + 0.05);
+                }
+            }
+        }
+
+        // Optimized geometry update using typed arrays
+        function updateLayerGeometryOptimized(layer) {
+            if (!layer.geometry) return;
+            if (layer.type === 'curve') {
+                updateCurveGeometry(layer);
+                return;
+            }
+
+            const pos = layer.geometry.attributes.position;
+            const col = layer.geometry.attributes.color;
+            const vis = layer.geometry.attributes.visibility;
+            const t = layer.useEquationAnim ? time : 0;
+
+            // Use typed array views for faster access
+            const posArray = pos.array;
+            const colArray = col.array;
+            const visArray = vis.array;
+
+            const cL = new THREE.Color(layer.colorLow);
+            const cH = new THREE.Color(layer.colorHigh);
+
+            let min = Infinity, max = -Infinity;
+            const count = pos.count;
+
+            // Pre-compute color components
+            const cLr = cL.r, cLg = cL.g, cLb = cL.b;
+            const cHr = cH.r, cHg = cH.g, cHb = cH.b;
+
+            // Batch process vertices
+            if (layer.type === 'function') {
+                const fn = layer.funcZ;
+                const vars = userVariables;
+
+                for (let i = 0; i < count; i++) {
+                    const idx3 = i * 3;
+                    const x = posArray[idx3];
+                    const z = posArray[idx3 + 2];
+                    let val = 0, visibility = 1.0;
+
+                    try {
+                        val = fn(x, z, t, vars);
+                        if (!isFinite(val)) { val = 0; visibility = 0; }
+                    } catch { visibility = 0; }
+
+                    posArray[idx3 + 1] = val;
+                    visArray[i] = visibility;
+
+                    if (visibility > 0.5) {
+                        if (val < min) min = val;
+                        if (val > max) max = val;
+                    }
+                }
+            } else {
+                const uvAttr = layer.geometry.attributes.uv;
+                const uvArray = uvAttr.array;
+                const uRange = layer.uMax - layer.uMin;
+                const vRange = layer.vMax - layer.vMin;
+                const fnX = layer.funcParam.x;
+                const fnY = layer.funcParam.y;
+                const fnZ = layer.funcParam.z;
+                const vars = userVariables;
+
+                for (let i = 0; i < count; i++) {
+                    const idx3 = i * 3;
+                    const idx2 = i * 2;
+                    const u = layer.uMin + uvArray[idx2] * uRange;
+                    const v = layer.vMin + uvArray[idx2 + 1] * vRange;
+                    let visibility = 1.0;
+
+                    try {
+                        const x = fnX ? fnX(u, v, t, vars) : 0;
+                        const y = fnY ? fnY(u, v, t, vars) : 0;
+                        const zVal = fnZ ? fnZ(u, v, t, vars) : 0;
+
+                        if (!isFinite(x) || !isFinite(y) || !isFinite(zVal)) visibility = 0;
+
+                        posArray[idx3] = x;
+                        posArray[idx3 + 1] = zVal;
+                        posArray[idx3 + 2] = y;
+
+                        if (visibility > 0.5) {
+                            if (zVal < min) min = zVal;
+                            if (zVal > max) max = zVal;
+                        }
+                    } catch { visibility = 0; }
+
+                    visArray[i] = visibility;
+                }
+            }
+
+            pos.needsUpdate = true;
+            vis.needsUpdate = true;
+
+            // Only compute normals every few frames for animated surfaces
+            if (!layer.useEquationAnim || frameCount % 3 === 0) {
+                layer.geometry.computeVertexNormals();
+            }
+
+            // Update colors with optimized loop
+            if (layer.pattern === 'none') {
+                const range = max - min;
+                const invRange = range !== 0 ? 1 / range : 0;
+
+                for (let i = 0; i < count; i++) {
+                    const idx3 = i * 3;
+                    const h = posArray[idx3 + 1];
+                    const t = range !== 0 ? Math.max(0, Math.min(1, (h - min) * invRange)) : 0.5;
+                    const t1 = 1 - t;
+
+                    colArray[idx3] = cLr * t1 + cHr * t;
+                    colArray[idx3 + 1] = cLg * t1 + cHg * t;
+                    colArray[idx3 + 2] = cLb * t1 + cHb * t;
+                }
+            } else {
+                colArray.fill(1);
+            }
+            col.needsUpdate = true;
+        }
+
+        // Replace the original function
+        const originalUpdateLayerGeometry = typeof updateLayerGeometry !== 'undefined' ? updateLayerGeometry : null;
+
+
+        function updateLayerGeometry(layer) {
+            if (!layer.geometry) return;
+            if (layer.type === 'curve') {
+                updateCurveGeometry(layer);
+                return;
+            }
+            const pos = layer.geometry.attributes.position;
+            const col = layer.geometry.attributes.color;
+            const vis = layer.geometry.attributes.visibility;
+            const t = layer.useEquationAnim ? time : 0;
+            const cL = new THREE.Color(layer.colorLow), cH = new THREE.Color(layer.colorHigh), tmp = new THREE.Color();
+            let min = Infinity, max = -Infinity;
+
+            for (let i = 0; i < pos.count; i++) {
+                let val = 0, visibility = 1.0;
+                if (layer.type === 'function') {
+                    try {
+                        val = layer.funcZ(pos.getX(i), pos.getZ(i), t, userVariables);
+                        if (!isFinite(val)) { val=0; visibility=0; }
+                    } catch { visibility=0; }
+                    pos.setY(i, val);
+                } else {
+                    const uv = layer.geometry.attributes.uv;
+                    const u = layer.uMin + uv.getX(i)*(layer.uMax-layer.uMin);
+                    const vv = layer.vMin + uv.getY(i)*(layer.vMax-layer.vMin);
+                    try {
+                        let x = layer.funcParam.x ? layer.funcParam.x(u, vv, t, userVariables) : 0;
+                        let y = layer.funcParam.y ? layer.funcParam.y(u, vv, t, userVariables) : 0;
+                        let z = layer.funcParam.z ? layer.funcParam.z(u, vv, t, userVariables) : 0;
+                        if (!isFinite(x) || !isFinite(y) || !isFinite(z)) visibility=0;
+                        pos.setXYZ(i, x, z, y);
+                        val = z;
+                    } catch { visibility=0; }
+                }
+                vis.setX(i, visibility);
+                if (visibility > 0.5) {
+                    if (val < min) min = val;
+                    if (val > max) max = val;
+                }
+            }
+
+            pos.needsUpdate = vis.needsUpdate = true;
+            layer.geometry.computeVertexNormals();
+
+            if (layer.pattern === 'none') {
+                for (let i = 0; i < pos.count; i++) {
+                    let h = pos.getY(i);
+                    tmp.lerpColors(cL, cH, (max !== min) ? Math.max(0, Math.min(1, (h - min) / (max - min))) : 0.5);
+                    col.setXYZ(i, tmp.r, tmp.g, tmp.b);
+                }
+            } else {
+                for (let i = 0; i < pos.count; i++) col.setXYZ(i, 1, 1, 1);
+            }
+            col.needsUpdate = true;
+        }
+
+        
+        function parseScalarInput(raw, fallback) {
+            const text = (raw ?? '').toString().trim();
+            if (!text) return fallback;
+            if (/^[+-]?\d*\.?\d+(?:[eE][+-]?\d+)?$/.test(text)) {
+                const num = Number(text);
+                return Number.isFinite(num) ? num : fallback;
+            }
+            const fn = createFunction(text, []);
+            if (!fn) return fallback;
+            const value = fn(userVariables);
+            return Number.isFinite(value) ? value : fallback;
+        }
+
+function updateActiveLayer() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (!layer) return;
+
+            const isCurve = uiElements.modeCurve?.classList.contains('active');
+            const isParam = uiElements.modeParametric?.classList.contains('active');
+            layer.type = isCurve ? 'curve' : (isParam ? 'parametric' : 'function');
+
+            if (layer.type === 'function') {
+                layer.equation = uiElements.eqZ?.value || '0';
+                layer.rangeX = parseScalarInput(uiElements.rangeX?.value, 10);
+                layer.rangeY = parseScalarInput(uiElements.rangeY?.value, 10);
+            } else if (layer.type === 'parametric') {
+                layer.pX = uiElements.eqParamX?.value || 'u';
+                layer.pY = uiElements.eqParamY?.value || 'v';
+                layer.pZ = uiElements.eqParamZ?.value || '0';
+                layer.uMin = parseScalarInput(uiElements.uMin?.value, 0);
+                layer.uMax = parseScalarInput(uiElements.uMax?.value, 6.28);
+                layer.vMin = parseScalarInput(uiElements.vMin?.value, 0);
+                layer.vMax = parseScalarInput(uiElements.vMax?.value, 6.28);
+            } else {
+                layer.curveX = uiElements.eqCurveX?.value || 'cos(u)';
+                layer.curveY = uiElements.eqCurveY?.value || 'sin(u)';
+                layer.curveZ = uiElements.eqCurveZ?.value || '0';
+                layer.curveUMin = parseScalarInput(uiElements.curveUMin?.value, 0);
+                layer.curveUMax = parseScalarInput(uiElements.curveUMax?.value, 6.28);
+                layer.curveSegments = Math.max(20, parseInt(uiElements.curveSegments?.value || 200, 10));
+                layer.curveRadius = Math.max(0, parseFloat(uiElements.curveRadius?.value) || 0);
+                layer.curveClosed = uiElements.curveClosed?.checked || false;
+            }
+
+            layer.style = uiElements.style?.value || 'plastic';
+            layer.pattern = uiElements.pattern?.value || 'none';
+            layer.opacity = parseFloat(uiElements.opacity?.value) || 1;
+            layer.colorLow = uiElements.colorLow?.value || '#3b82f6';
+            layer.colorHigh = uiElements.colorHigh?.value || '#60a5fa';
+
+            layer.closedShape = uiElements.closedShape?.checked || false;
+            layer.useEquationAnim = uiElements.useEquationAnim?.checked || false;
+
+            if (uiElements.error) uiElements.error.textContent = '';
+
+            buildLayerMesh(layer);
+        }
+
+        function updateActiveLayerMaterialOnly() {
+            const layer = layers.find(l => l.id === activeLayerId);
+            if (layer?.root) {
+                layer.style = uiElements.style?.value || 'plastic';
+                layer.pattern = uiElements.pattern?.value || 'none';
+                layer.opacity = parseFloat(uiElements.opacity?.value) || 1;
+                if (layer.type === 'curve') {
+                    layer.root.traverse(c => {
+                        if (c.isLine) {
+                            if (c.material) c.material.dispose();
+                            c.material = new THREE.LineBasicMaterial({ color: new THREE.Color(layer.colorLow), transparent: true, opacity: layer.opacity });
+                        }
+                        if (c.isMesh) {
+                            if (c.material) c.material.dispose();
+                            const mat = createMaterial(layer.style, layer.opacity, layer.pattern);
+                            mat.vertexColors = false;
+                            mat.color = new THREE.Color(layer.colorLow);
+                            mat.needsUpdate = true;
+                            c.material = mat;
+                        }
+                    });
+                } else {
+                    const mat = createMaterial(layer.style, layer.opacity, layer.pattern);
+                    layer.root.traverse(c => {
+                        if(c.isMesh) {
+                            if (c.material) c.material.dispose();
+                            c.material = mat;
+                        }
+                    });
+                }
+                layer.dirty = true;
+            }
+        }
+
+        function normalizeQueryText(value) {
+            return (value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        }
+
+        function scoreShapeMatch(shape, query, words) {
+            const name = shape.name.toLowerCase();
+            const keys = shape.keys || [];
+            let score = 0;
+            if (query === name) score += 100;
+            if (name.includes(query)) score += 60;
+            if (query.includes(name)) score += 30;
+            if (keys.includes(query)) score += 90;
+            keys.forEach((k) => {
+                if (k === query) score += 80;
+                if (k.includes(query)) score += 50;
+                if (query.includes(k)) score += 40;
+            });
+            words.forEach((w) => {
+                if (!w) return;
+                if (name.includes(w)) score += 8;
+                keys.forEach((k) => {
+                    if (k.includes(w)) score += 6;
+                });
+            });
+            return score;
+        }
+
+        function findShapeMatch(query) {
+            const normalized = normalizeQueryText(query);
+            if (!normalized) return { match: null, suggestions: [] };
+            const words = normalized.split(' ');
+            const scored = shapeDatabase.map((shape) => ({
+                shape,
+                score: scoreShapeMatch(shape, normalized, words)
+            })).filter(item => item.score > 0);
+
+            scored.sort((a, b) => b.score - a.score);
+            const suggestions = scored.slice(0, 3).map(item => item.shape.name);
+            const match = scored.length && scored[0].score >= 40 ? scored[0].shape : null;
+            return { match, suggestions };
+        }
+
+        function buildShapeResultHtml(shape) {
+            const lines = [];
+            lines.push(`<div><strong>Match:</strong> ${shape.name} (${shape.type})</div>`);
+            if (shape.type === 'function') {
+                lines.push(`<div><code>z = ${shape.eq}</code></div>`);
+            } else {
+                lines.push(`<div><code>x = ${shape.x}</code></div>`);
+                lines.push(`<div><code>y = ${shape.y}</code></div>`);
+                lines.push(`<div><code>z = ${shape.z}</code></div>`);
+                if (shape.uRange && shape.vRange) {
+                    lines.push(`<div>u: ${shape.uRange[0]}..${shape.uRange[1]}, v: ${shape.vRange[0]}..${shape.vRange[1]}</div>`);
+                }
+            }
+            lines.push('<div class="shape-finder-note">Added as a new layer.</div>');
+            return lines.join('');
+        }
+
+        function handleShapeFinder() {
+            const input = uiElements.shapeFinderInput;
+            const result = uiElements.shapeFinderResult;
+            const query = input ? input.value : '';
+            if (!query || !query.trim()) {
+                if (result) result.textContent = 'Type a shape name to fetch a working equation from the built-in database.';
+                return;
+            }
+            const found = findShapeMatch(query);
+            if (found.match) {
+                addShapeFromPreset(found.match);
+                if (result) result.innerHTML = buildShapeResultHtml(found.match);
+            } else if (result) {
+                if (found.suggestions.length) {
+                    result.textContent = `No exact match. Closest: ${found.suggestions.join(', ')}`;
+                } else {
+                    result.textContent = 'No match in the built-in database. Try a different name or check Tutorials & Tips.';
+                }
+            }
+            if (input) input.value = '';
+        }
+
+        function handleMagicCommand() {
+            const input = document.getElementById('magic-input');
+            const q = input ? input.value.toLowerCase().trim() : '';
+            if (!q) return;
+
+            const m = shapeDatabase.find(s => s.keys.some(k => q.includes(k)));
+            if (m) {
+                addShapeFromPreset(m);
+            } else {
+                addLayer({ name: 'New Object' });
+            }
+            if (input) input.value = '';
+        }
+
+        function renderLayerList() {
+            if (!uiElements.layerList) return;
+            uiElements.layerList.innerHTML = '';
+            layers.forEach(l => {
+                const d = document.createElement('div');
+                d.className = `layer-item ${l.id === activeLayerId ? 'active' : ''}`;
+                d.onclick = () => setActiveLayer(l.id);
+                d.innerHTML = `<span class="layer-name">${l.name}</span><button class="layer-btn">&times;</button>`;
+                d.querySelector('button').onclick = (e) => { e.stopPropagation(); removeLayer(l.id); };
+                uiElements.layerList.appendChild(d);
+            });
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            adjustLOD();
+            requestAnimationFrame(animate);
+            const speedInput = document.getElementById('anim-speed');
+            const s = speedInput ? parseFloat(speedInput.value) : 0.02;
+            if (isPlaying && s > 0) time += s;
+            if (animEffect !== 'none') applyAnimEffect(s);
+
+            layers.forEach(l => {
+                if ((isPlaying && s > 0 && l.useEquationAnim) || l.dirty) {
+                    updateLayerGeometryOptimized(l);
+                    l.dirty = false;
+                }
+                if (l.root && !isTransforming) {
+                    if (l.animMode === 'spin') l.root.rotation.y += 0.02;
+                    else if (l.animMode === 'bob') l.root.position.y = l.posY + Math.sin(time*2);
+                    else if (l.animMode === 'pulse') {
+                        const sc = 1 + Math.sin(time*5)*0.2;
+                        l.root.scale.set(l.scaleX*sc*(l.isFlippedX?-1:1), l.scaleY*sc*(l.isFlippedY?-1:1), l.scaleZ*sc*(l.isFlippedZ?-1:1));
+                    }
+                }
+            });
+
+            if (controls) controls.update();
+            if (grainPass && grainPass.enabled) grainPass.uniforms.time.value = performance.now() * 0.001;
+            if (useComposer && composer) { composer.render(); } else { renderer.render(scene, camera); }
+        }
+
+        init();
+    </script>
+</body>
+</html>
+
+
+
