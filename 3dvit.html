@@ -584,8 +584,8 @@
                     </div>
                     <div class="row">
                         <div class="control-group"><label>U Range</label><div class="row"><input type="text" id="curve-u-min" value="0" inputmode="decimal"><input type="text" id="curve-u-max" value="6.28" inputmode="decimal"></div></div>
-                        <div class="control-group"><label>Segments</label><input type="number" id="curve-segments" min="20" max="1000" value="200"></div>
-                        <div class="control-group"><label>Radius</label><input type="number" id="curve-radius" min="0" max="1" step="0.01" value="0.05"></div>
+                        <div class="control-group"><label for="curve-segments">Segments</label><input type="number" id="curve-segments" min="20" max="1000" value="200"></div>
+                        <div class="control-group"><label for="curve-radius">Radius</label><input type="number" id="curve-radius" min="0" max="1" step="0.01" value="0.05"></div>
                     </div>
                     <div class="checkbox-group"><input type="checkbox" id="curve-closed"><label for="curve-closed">Closed Curve</label></div>
                 </div>
@@ -697,12 +697,12 @@
                         </select>
                         <select id="pattern-style"><option value="none">No Texture</option><option value="checker">Checker</option><option value="grid">Grid</option><option value="bricks">Bricks</option><option value="ripples">Ripples</option></select>
                     </div>
-                    <div class="row" style="margin-top: 8px;"><label>Opacity</label><input type="range" id="opacity-slider" min="0.1" max="1" step="0.05" value="1"></div>
+                    <div class="row" style="margin-top: 8px;"><label for="opacity-slider">Opacity</label><input type="range" id="opacity-slider" min="0.1" max="1" step="0.05" value="1"></div>
                 </div>
 
                 <div class="row">
-                    <div class="control-group"><label>Low Color</label><input type="color" id="color-low" value="#3b82f6"></div>
-                    <div class="control-group"><label>High Color</label><input type="color" id="color-high" value="#60a5fa"></div>
+                    <div class="control-group"><label for="color-low">Low Color</label><input type="color" id="color-low" value="#3b82f6"></div>
+                    <div class="control-group"><label for="color-high">High Color</label><input type="color" id="color-high" value="#60a5fa"></div>
                 </div>
                 <button id="update-btn">Apply Equations</button>
             </div>
@@ -717,8 +717,8 @@
                 <div class="control-group">
                     <label>Lighting Orientation</label>
                     <div class="row">
-                        <div style="flex:1"><label>Angle</label><input type="range" id="light-angle" min="0" max="360" value="45"></div>
-                        <div style="flex:1"><label>Height</label><input type="range" id="light-elevation" min="0" max="90" value="45"></div>
+                        <div style="flex:1"><label for="light-angle">Angle</label><input type="range" id="light-angle" min="0" max="360" value="45"></div>
+                        <div style="flex:1"><label for="light-elevation">Height</label><input type="range" id="light-elevation" min="0" max="90" value="45"></div>
                     </div>
                 </div>
 
@@ -739,7 +739,7 @@
                         </select>
                     </div>
                     <div class="row" style="margin-top:6px">
-                        <div style="flex:1"><label>Intensity</label><input type="range" id="env-intensity" min="0" max="3" step="0.1" value="1"></div>
+                        <div style="flex:1"><label for="env-intensity">Intensity</label><input type="range" id="env-intensity" min="0" max="3" step="0.1" value="1"></div>
                     </div>
                     <div class="checkbox-group" style="margin-top:6px"><input type="checkbox" id="show-env-bg"><label for="show-env-bg">Show as Background</label></div>
                 </div>
@@ -747,8 +747,8 @@
                     <label>Post-Processing</label>
                     <div class="checkbox-group"><input type="checkbox" id="fx-bloom"><label for="fx-bloom">Bloom (Glow)</label></div>
                     <div class="row" id="bloom-controls" style="display:none;margin-top:6px">
-                        <div style="flex:1"><label>Strength</label><input type="range" id="bloom-strength" min="0" max="3" step="0.1" value="0.8"></div>
-                        <div style="flex:1"><label>Radius</label><input type="range" id="bloom-radius" min="0" max="2" step="0.1" value="0.4"></div>
+                        <div style="flex:1"><label for="bloom-strength">Strength</label><input type="range" id="bloom-strength" min="0" max="3" step="0.1" value="0.8"></div>
+                        <div style="flex:1"><label for="bloom-radius">Radius</label><input type="range" id="bloom-radius" min="0" max="2" step="0.1" value="0.4"></div>
                     </div>
                     <div class="checkbox-group"><input type="checkbox" id="fx-vignette"><label for="fx-vignette">Vignette</label></div>
                     <div class="checkbox-group"><input type="checkbox" id="fx-chromatic"><label for="fx-chromatic">Chromatic Aberration</label></div>
@@ -756,7 +756,7 @@
                 </div>
                 <div class="anim-controls">
                     <button id="play-btn" class="active">&#x23F8;</button>
-                    <div style="flex-grow: 1;"><label>Animation Speed</label><input type="range" id="anim-speed" min="0" max="0.1" step="0.001" value="0.02"></div>
+                    <div style="flex-grow: 1;"><label for="anim-speed">Animation Speed</label><input type="range" id="anim-speed" min="0" max="0.1" step="0.001" value="0.02"></div>
                 
                     <div style="flex-grow: 1; margin-left: 8px;">
                         <label for="anim-effect">Effect</label>

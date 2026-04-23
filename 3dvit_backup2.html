@@ -437,12 +437,12 @@
                         <select id="material-style"><option value="plastic">Plastic</option><option value="water">Water</option><option value="glass">Glass</option><option value="wireframe">Wireframe</option></select>
                         <select id="pattern-style"><option value="none">No Texture</option><option value="checker">Checker</option><option value="grid">Grid</option><option value="bricks">Bricks</option><option value="ripples">Ripples</option></select>
                     </div>
-                    <div class="row" style="margin-top: 8px;"><label>Opacity</label><input type="range" id="opacity-slider" min="0.1" max="1" step="0.05" value="1"></div>
+                    <div class="row" style="margin-top: 8px;"><label for="opacity-slider">Opacity</label><input type="range" id="opacity-slider" min="0.1" max="1" step="0.05" value="1"></div>
                 </div>
 
                 <div class="row">
-                    <div class="control-group"><label>Low Color</label><input type="color" id="color-low" value="#3b82f6"></div>
-                    <div class="control-group"><label>High Color</label><input type="color" id="color-high" value="#60a5fa"></div>
+                    <div class="control-group"><label for="color-low">Low Color</label><input type="color" id="color-low" value="#3b82f6"></div>
+                    <div class="control-group"><label for="color-high">High Color</label><input type="color" id="color-high" value="#60a5fa"></div>
                 </div>
                 <button id="update-btn">Apply Equations</button>
             </div>
@@ -457,14 +457,14 @@
                 <div class="control-group">
                     <label>Lighting Orientation</label>
                     <div class="row">
-                        <div style="flex:1"><label>Angle</label><input type="range" id="light-angle" min="0" max="360" value="45"></div>
-                        <div style="flex:1"><label>Height</label><input type="range" id="light-elevation" min="0" max="90" value="45"></div>
+                        <div style="flex:1"><label for="light-angle">Angle</label><input type="range" id="light-angle" min="0" max="360" value="45"></div>
+                        <div style="flex:1"><label for="light-elevation">Height</label><input type="range" id="light-elevation" min="0" max="90" value="45"></div>
                     </div>
                 </div>
 
                 <div class="anim-controls">
                     <button id="play-btn" class="active">⏸</button>
-                    <div style="flex-grow: 1;"><label>Animation Speed</label><input type="range" id="anim-speed" min="0" max="0.1" step="0.001" value="0.02"></div>
+                    <div style="flex-grow: 1;"><label for="anim-speed">Animation Speed</label><input type="range" id="anim-speed" min="0" max="0.1" step="0.001" value="0.02"></div>
                 </div>
                 <div class="checkbox-group"><input type="checkbox" id="auto-rotate"><label for="auto-rotate">Auto Rotate Camera</label></div>
             </div>
