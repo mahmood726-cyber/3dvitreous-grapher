@@ -367,16 +367,16 @@
 
                 <div id="ui-function-mode">
                     <div class="control-group">
-                        <label>Equation z =</label>
-                        <input type="text" id="eq-z" spellcheck="false" placeholder="sin(a * x)">
+                        <label for="eq-z">Equation z =</label>
+                        <input type="text" id="eq-z" spellcheck="false" aria-label="sin(a * x)" placeholder="sin(a * x)">
                     </div>
                     <div class="row">
                          <div class="control-group">
-                            <label>X Range ±</label>
+                            <label for="range-x">X Range ±</label>
                             <input type="text" id="range-x" value="10" inputmode="decimal">
                         </div>
                          <div class="control-group">
-                            <label>Y Range ±</label>
+                            <label for="range-y">Y Range ±</label>
                             <input type="text" id="range-y" value="10" inputmode="decimal">
                         </div>
                     </div>
@@ -384,9 +384,9 @@
 
                 <div id="ui-parametric-mode" style="display: none;">
                     <div class="control-group">
-                        <div class="param-input-group"><span class="param-label">x</span><input type="text" id="eq-param-x" spellcheck="false" placeholder="(4 + 1.5 * cos(v)) * cos(u)"></div>
-                        <div class="param-input-group"><span class="param-label">y</span><input type="text" id="eq-param-y" spellcheck="false" placeholder="(4 + 1.5 * cos(v)) * sin(u)"></div>
-                        <div class="param-input-group"><span class="param-label">z</span><input type="text" id="eq-param-z" spellcheck="false" placeholder="1.5 * sin(v)"></div>
+                        <div class="param-input-group"><span class="param-label">x</span><input type="text" id="eq-param-x" spellcheck="false" aria-label="(4 + 1.5 * cos(v)) * cos(u)" placeholder="(4 + 1.5 * cos(v)) * cos(u)"></div>
+                        <div class="param-input-group"><span class="param-label">y</span><input type="text" id="eq-param-y" spellcheck="false" aria-label="(4 + 1.5 * cos(v)) * sin(u)" placeholder="(4 + 1.5 * cos(v)) * sin(u)"></div>
+                        <div class="param-input-group"><span class="param-label">z</span><input type="text" id="eq-param-z" spellcheck="false" aria-label="1.5 * sin(v)" placeholder="1.5 * sin(v)"></div>
                     </div>
                     <div class="row">
                         <div class="control-group"><label>U Range</label><div class="row"><input type="text" id="u-min" value="0" inputmode="decimal"><input type="text" id="u-max" value="6.28" inputmode="decimal"></div></div>
@@ -451,7 +451,7 @@
                 <div class="group-title">Global Scene</div>
                 <div class="magic-box">
                     <label style="margin-bottom:6px; display:block; font-size:0.75rem; color:var(--accent-color); font-weight:700;">Magic Generator</label>
-                    <div class="magic-input-group"><input type="text" id="magic-input" placeholder="e.g. 'donut', 'sphere', 'wave'"><button id="magic-btn">Add</button></div>
+                    <div class="magic-input-group"><input type="text" id="magic-input" aria-label="e.g. 'donut', 'sphere', 'wave'" placeholder="e.g. 'donut', 'sphere', 'wave'"><button id="magic-btn">Add</button></div>
                 </div>
 
                 <div class="control-group">
