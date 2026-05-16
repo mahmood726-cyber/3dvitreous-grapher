@@ -329,6 +329,11 @@
         .eq-chip { border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); padding: 4px 8px; border-radius: 999px; font-size: 0.7rem; cursor: pointer; }
         .eq-chip:hover { border-color: var(--accent-color); color: var(--text-color); }
         .equation-status { font-size: 0.7rem; color: var(--text-muted); min-height: 1em; }
+        .equation-converter { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--section-bg); }
+        .converter-row { display: flex; gap: 6px; margin: 4px 0; }
+        .converter-row input { flex: 1; min-width: 0; }
+        #converter-btn { white-space: nowrap; }
+        .converter-preview { font-size: 0.7rem; color: var(--text-muted); min-height: 1em; word-break: break-word; font-family: ui-monospace, Menlo, Consolas, monospace; }
         #magic-btn { width: auto; padding: 8px 16px; background: var(--accent-color); }
 
         .anim-controls { display: flex; gap: 12px; align-items: center; }
@@ -612,6 +617,14 @@
                         <button class="eq-chip" data-insert="t">t</button>
                     </div>
                     <div class="equation-status" id="equation-status">Click a field above, then use the chips to insert helpers.</div>
+                    <div class="equation-converter">
+                        <div class="equation-helper-title">Converter — paste any equation</div>
+                        <div class="converter-row">
+                            <input type="text" id="converter-input" spellcheck="false" aria-label="Paste a messy or textbook equation to convert" placeholder="e.g.  √(x²+y²)   or   2x³ - [y+1]">
+                            <button id="converter-btn" type="button" class="secondary-btn">Convert &amp; Graph</button>
+                        </div>
+                        <div class="converter-preview" id="converter-preview" aria-live="polite"></div>
+                    </div>
                 </div>
 
                 <datalist id="equation-suggestions">
@@ -1048,6 +1061,9 @@
                 colorHigh: getEl('color-high'),
                 error: getEl('error-msg'),
                 equationStatus: getEl('equation-status'),
+                converterInput: getEl('converter-input'),
+                converterBtn: getEl('converter-btn'),
+                converterPreview: getEl('converter-preview'),
                 lightAngle: getEl('light-angle'),
                 lightElevation: getEl('light-elevation'),                envSelect: getEl('environment-select'),                envIntensity: getEl('env-intensity'),                showEnvBg: getEl('show-env-bg'),                fxBloom: getEl('fx-bloom'),                bloomStrength: getEl('bloom-strength'),                bloomRadius: getEl('bloom-radius'),                bloomControls: getEl('bloom-controls'),                fxVignette: getEl('fx-vignette'),                fxChromatic: getEl('fx-chromatic'),                fxGrain: getEl('fx-grain'),
                 posX: getEl('pos-x'),
@@ -1860,6 +1876,8 @@
 
             attach('add-layer-btn', 'click', () => addLayer({ type: 'function', eq: '0', name: 'New Object' }));
             attach('update-btn', 'click', updateActiveLayer);
+            attach('converter-btn', 'click', applyConverter);
+            if (uiElements.converterInput) uiElements.converterInput.addEventListener('input', updateConverterPreview);
             attach('magic-btn', 'click', handleMagicCommand);
             attach('shape-finder-btn', 'click', handleShapeFinder);
 
@@ -2240,6 +2258,38 @@
                 if (!registeredVars.has(name)) createVariableUI(name, 1);
                 if (!(name in userVariables)) userVariables[name] = 1;
             }
+        }
+
+        function currentEquationArgs() {
+            return (activeEquationInput && activeEquationInput.args) ? activeEquationInput.args : ['x', 'y', 't'];
+        }
+
+        function updateConverterPreview() {
+            const el = uiElements.converterPreview;
+            if (!el) return;
+            const raw = uiElements.converterInput ? uiElements.converterInput.value : '';
+            if (!raw.trim()) { el.textContent = ''; return; }
+            const cleaned = cleanEquationText(raw);
+            const changes = describeEquationChanges(raw, cleaned);
+            const a = analyzeEquation(cleaned, currentEquationArgs());
+            let status;
+            if (a.error) status = 'Error: ' + a.error;
+            else if (a.autoParams.length) status = 'OK - adds slider' + (a.autoParams.length > 1 ? 's' : '') + ': ' + a.autoParams.join(', ');
+            else status = 'OK - graphable';
+            el.textContent = cleaned + (changes ? '   (' + changes + ')' : '') + '  -  ' + status;
+        }
+
+        function applyConverter() {
+            const raw = uiElements.converterInput ? uiElements.converterInput.value : '';
+            if (!raw.trim()) return;
+            const cleaned = cleanEquationText(raw);
+            const target = (activeEquationInput && activeEquationInput.el) ? activeEquationInput.el : uiElements.eqZ;
+            if (!target) return;
+            const args = currentEquationArgs();
+            target.value = cleaned;
+            target.dispatchEvent(new Event('input'));
+            updateConverterPreview();
+            if (!analyzeEquation(cleaned, args).error) updateActiveLayer();
         }
 
         function registerEquationInput(el, args) {
