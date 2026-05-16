@@ -2631,13 +2631,6 @@
 
         const CONSTANT_LOWER = new Set(Object.keys(CONSTANT_ALIASES)); // pi,e,tau,phi
 
-        // Single source of truth: normalize + classify every identifier with
-        // one-token lookahead. Never throws. Returns:
-        //   { code, error, autoParams }
-        // - error: human message when the equation is definitively invalid
-        //   (unknown function, unknown multi-letter name, unsupported chars)
-        // - autoParams: single-letter unknowns (a,k,c...) that should become
-        //   draggable variable sliders so e.g. "a*sin(x)" just works.
         // Pure, DOM-free: messy / textbook notation -> readable engine-ready
         // text. Single source of truth shared by the engine and the in-app
         // converter. Only well-defined equivalents are translated; ambiguous
@@ -2677,11 +2670,18 @@
             if (/\u221B/.test(raw)) n.push('\u221B \u2192 cbrt()');
             if (/[\[\]{}]/.test(raw)) n.push('[ ] { } \u2192 ( )');
             if (/[\u03C0\u03C4\u03C6]/.test(raw)) n.push('Greek \u2192 pi/tau/phi');
-            if (/[\u00A0\u200B\u200C\u200D\uFEFF]/.test(raw)) n.push('removed hidden spaces');
+            if (/[\u00A0\u200B\u200C\u200D\uFEFF]/.test(raw)) n.push('normalized hidden spaces');
             if (!n.length) n.push('tidied spacing');
             return 'Converted: ' + n.join(', ') + '.';
         }
 
+        // Single source of truth: normalize + classify every identifier with
+        // one-token lookahead. Never throws. Returns:
+        //   { code, error, autoParams }
+        // - error: human message when the equation is definitively invalid
+        //   (unknown function, unknown multi-letter name, unsupported chars)
+        // - autoParams: single-letter unknowns (a,k,c...) that should become
+        //   draggable variable sliders so e.g. "a*sin(x)" just works.
         function normalizeEquationCore(expr, args) {
             const out = { code: '0', error: null, autoParams: [] };
             let cleaned = cleanEquationText(expr);
