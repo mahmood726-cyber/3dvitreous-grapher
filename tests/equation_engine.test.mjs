@@ -175,5 +175,17 @@ console.log('\n== cleanEquationText: messy -> readable engine-ready form ==');
   ok2(cleanEquationText('x=y'), 'x=y', '= left intact');
 }
 
+console.log('\n== describeEquationChanges: friendly summary ==');
+{
+  ok(typeof describeEquationChanges === 'function', 'describeEquationChanges() exists');
+  ok(describeEquationChanges('sin(x)', 'sin(x)') === '', 'no change -> empty string');
+  ok(describeEquationChanges('', '') === '', 'empty -> empty string');
+  ok(/× → \*/.test(describeEquationChanges('x×y', 'x*y')), 'reports × → *');
+  ok(/superscript/.test(describeEquationChanges('x²', 'x^(2)')), 'reports superscript');
+  ok(/sqrt/.test(describeEquationChanges('√x', 'sqrt(x)')), 'reports √ → sqrt()');
+  ok(/hidden spaces/.test(describeEquationChanges('x​y', 'xy')), 'reports hidden spaces');
+  ok(describeEquationChanges('a b', 'a b').length === 0, 'identical (whitespace same) -> empty');
+}
+
 console.log(`\n${'='.repeat(56)}\nRESULT: ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);
