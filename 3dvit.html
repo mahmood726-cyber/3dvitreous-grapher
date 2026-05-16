@@ -2638,29 +2638,54 @@
         //   (unknown function, unknown multi-letter name, unsupported chars)
         // - autoParams: single-letter unknowns (a,k,c...) that should become
         //   draggable variable sliders so e.g. "a*sin(x)" just works.
-        function normalizeEquationCore(expr, args) {
-            const out = { code: '0', error: null, autoParams: [] };
-            let cleaned = (expr || '').trim();
-            if (!cleaned) return out;
-
-            // Normalise common "natural maths" notation to engine syntax.
-            // Only well-defined equivalents are translated; ambiguous symbols
-            // (=, <, >, \u2264, \u2265, \u2260, \u00B0, \u2026) deliberately still error clearly so a
-            // mistyped relation never silently graphs the wrong surface.
+        // Pure, DOM-free: messy / textbook notation -> readable engine-ready
+        // text. Single source of truth shared by the engine and the in-app
+        // converter. Only well-defined equivalents are translated; ambiguous
+        // symbols (=, <, >, \u2264, \u2265, \u2260, \u00B0, \u2026) are left intact so a mistyped
+        // relation errors clearly downstream instead of silently graphing the
+        // wrong surface. Superscripts become ^( \u2026 ) (readable); the engine
+        // turns ^ into ** later, so numeric results are unchanged.
+        function cleanEquationText(raw) {
+            let s = (raw || '').trim();
+            if (!s) return '';
             const SUP = { '\u2070': '0', '\u00B9': '1', '\u00B2': '2', '\u00B3': '3', '\u2074': '4', '\u2075': '5', '\u2076': '6', '\u2077': '7', '\u2078': '8', '\u2079': '9', '\u207A': '+', '\u207B': '-' };
-            cleaned = cleaned
+            return s
                 .replace(/[\u200B\u200C\u200D\uFEFF]/g, '')      // zero-width junk
+                .replace(/\u00A0/g, ' ')                         // nbsp -> normal space
                 .replace(/[\u2013\u2014\u2212]/g, '-')                           // dashes / minus sign
                 .replace(/[\u00D7\u00B7\u2217\u22C5]/g, '*')                          // \u00D7, \u00B7, \u2217, \u22C5
                 .replace(/[\u00F7\u2215\u2044]/g, '/')                            // \u00F7, division & fraction slash
                 .replace(/\u03C0/g, 'pi').replace(/\u03C4/g, 'tau').replace(/\u03C6/g, 'phi')
                 .replace(/[\[{]/g, '(').replace(/[\]}]/g, ')')     // [ ] { } -> ( )
-                .replace(/\u221A\s*(\([^()]*\)|[A-Za-z_]\w*|\d+(?:\.\d+)?)/g, 'sqrt($1)')
+                .replace(/\u221A\s*(\([^()]*\)|[A-Za-z_]\w*|\d+(?:\.\d+)?)/g, (_, g) => 'sqrt(' + g.replace(/^\((.*)\)$/, '$1') + ')')
                 .replace(/\u221A/g, 'sqrt')                             // bare/nested fallback
-                .replace(/\u221B\s*(\([^()]*\)|[A-Za-z_]\w*|\d+(?:\.\d+)?)/g, 'cbrt($1)')
+                .replace(/\u221B\s*(\([^()]*\)|[A-Za-z_]\w*|\d+(?:\.\d+)?)/g, (_, g) => 'cbrt(' + g.replace(/^\((.*)\)$/, '$1') + ')')
                 .replace(/\u221B/g, 'cbrt')
-                .replace(/[\u2070\u00B9\u00B2\u00B3\u2074\u2075\u2076\u2077\u2078\u2079\u207A\u207B]+/g, (run) =>            // superscript run -> **( \u2026 )
-                    '**(' + run.replace(/[\u2070\u00B9\u00B2\u00B3\u2074\u2075\u2076\u2077\u2078\u2079\u207A\u207B]/g, (c) => SUP[c]) + ')');
+                .replace(/[\u2070\u00B9\u00B2\u00B3\u2074\u2075\u2076\u2077\u2078\u2079\u207A\u207B]+/g, (run) =>            // superscript run -> ^( \u2026 )
+                    '^(' + run.replace(/[\u2070\u00B9\u00B2\u00B3\u2074\u2075\u2076\u2077\u2078\u2079\u207A\u207B]/g, (c) => SUP[c]) + ')');
+        }
+
+        // Pure: short, friendly summary of which categories of fix were applied.
+        function describeEquationChanges(raw, cleaned) {
+            if (!raw || raw === cleaned) return '';
+            const n = [];
+            if (/[\u00D7\u00B7\u2217\u22C5]/.test(raw)) n.push('\u00D7 \u2192 *');
+            if (/[\u00F7\u2215\u2044]/.test(raw)) n.push('\u00F7 \u2192 /');
+            if (/[\u2013\u2014\u2212]/.test(raw)) n.push('dash \u2192 -');
+            if (/[\u2070\u00B9\u00B2\u00B3\u2074\u2075\u2076\u2077\u2078\u2079\u207A\u207B]/.test(raw)) n.push('superscript \u2192 ^( )');
+            if (/\u221A/.test(raw)) n.push('\u221A \u2192 sqrt()');
+            if (/\u221B/.test(raw)) n.push('\u221B \u2192 cbrt()');
+            if (/[\[\]{}]/.test(raw)) n.push('[ ] { } \u2192 ( )');
+            if (/[\u03C0\u03C4\u03C6]/.test(raw)) n.push('Greek \u2192 pi/tau/phi');
+            if (/[\u00A0\u200B\u200C\u200D\uFEFF]/.test(raw)) n.push('removed hidden spaces');
+            if (!n.length) n.push('tidied spacing');
+            return 'Converted: ' + n.join(', ') + '.';
+        }
+
+        function normalizeEquationCore(expr, args) {
+            const out = { code: '0', error: null, autoParams: [] };
+            let cleaned = cleanEquationText(expr);
+            if (!cleaned) return out;
 
             const assignMatch = cleaned.match(/^\s*([xyz])\s*(\([^)]*\))?\s*=\s*(.+)$/i);
             if (assignMatch) cleaned = assignMatch[3];

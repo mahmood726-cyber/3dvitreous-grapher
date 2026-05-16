@@ -35,10 +35,12 @@ vm.createContext(sandbox);
 vm.runInContext(
   `var userVariables = userVariables;\n${parserSrc}\n` +
   `globalThis.__api = { normalizeEquation, createFunction, ` +
-  `analyzeEquation: (typeof analyzeEquation === 'function' ? analyzeEquation : null) };`,
+  `analyzeEquation: (typeof analyzeEquation === 'function' ? analyzeEquation : null), ` +
+  `cleanEquationText: (typeof cleanEquationText === 'function' ? cleanEquationText : null), ` +
+  `describeEquationChanges: (typeof describeEquationChanges === 'function' ? describeEquationChanges : null) };`,
   sandbox
 );
-const { normalizeEquation, createFunction, analyzeEquation } = sandbox.__api;
+const { normalizeEquation, createFunction, analyzeEquation, cleanEquationText, describeEquationChanges } = sandbox.__api;
 const setVars = (o) => { for (const k of Object.keys(sandbox.userVariables)) delete sandbox.userVariables[k]; Object.assign(sandbox.userVariables, o || {}); };
 
 let pass = 0, fail = 0;
@@ -150,6 +152,27 @@ for (const expr of ['2 ≤ x', 'x ≥ y', 'x ≠ y', 'x & y']) {
   setVars({});
   const a = analyzeEquation(expr, ['x', 'y', 't']);
   ok(a && a.error && /unsupported/i.test(a.error), `"${expr}" -> clear unsupported-character error (not converted)`);
+}
+
+console.log('\n== cleanEquationText: messy -> readable engine-ready form ==');
+{
+  const ok2 = (got, exp, msg) => ok(got === exp, msg + ' (got: ' + JSON.stringify(got) + ')');
+  ok(typeof cleanEquationText === 'function', 'cleanEquationText() exists');
+  ok2(cleanEquationText('x²+y²'), 'x^(2)+y^(2)', 'superscripts -> ^( )');
+  ok2(cleanEquationText('x¹⁰'), 'x^(10)', 'superscript run grouped');
+  ok2(cleanEquationText('x⁻¹'), 'x^(-1)', 'negative superscript');
+  ok2(cleanEquationText('√(x*x+y*y)'), 'sqrt(x*x+y*y)', 'root with parens');
+  ok2(cleanEquationText('√x'), 'sqrt(x)', 'root with bare operand');
+  ok2(cleanEquationText('√4'), 'sqrt(4)', 'root with number operand');
+  ok2(cleanEquationText('∛8'), 'cbrt(8)', 'cube root');
+  ok2(cleanEquationText('[x+1]*{y-2}'), '(x+1)*(y-2)', 'brackets -> parens');
+  ok2(cleanEquationText('x×y÷2'), 'x*y/2', 'unicode operators');
+  ok2(cleanEquationText('2π·r'), '2pi*r', 'greek + middle dot');
+  ok2(cleanEquationText('x​^2'), 'x^2', 'zero-width stripped');
+  ok2(cleanEquationText('x + y'), 'x + y', 'nbsp -> normal space');
+  ok2(cleanEquationText(''), '', 'empty input -> empty');
+  ok2(cleanEquationText('  sin(x)  '), 'sin(x)', 'trimmed, untouched when already clean');
+  ok2(cleanEquationText('x=y'), 'x=y', '= left intact');
 }
 
 console.log(`\n${'='.repeat(56)}\nRESULT: ${pass} passed, ${fail} failed`);
