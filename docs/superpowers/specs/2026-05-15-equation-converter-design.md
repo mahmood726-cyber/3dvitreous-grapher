@@ -53,8 +53,8 @@ e.g. *"Converted × → \*, ² → ^2, removed hidden spaces."* Empty string if
 
 ### 3. UI panel
 
-Inside the existing `.equation-helper` block, directly above
-`#equation-status` (~line 614), matching current classes/styling:
+Inside the existing `.equation-helper` block, directly below
+`#equation-status` (as the last child of the block), matching current classes/styling:
 
 - `<input type="text" id="converter-input" placeholder="Paste a messy equation…">`
 - `<button id="converter-btn">Convert & Graph</button>`
