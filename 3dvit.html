@@ -795,6 +795,7 @@
         let currentTransformMode = 'translate';
         let layers = [], nextLayerId = 1, activeLayerId = null;
         let userVariables = { a: 1.0, b: 1.0, c: 1.0 };
+        const registeredVars = new Set();
         let currentEnvIntensity = 1;
 
         const textureCache = new Map();
@@ -2217,11 +2218,27 @@
                 updateEquationStatus('Click a field above, then use the chips to insert helpers.');
                 return;
             }
-            const fn = createFunction(cleaned, args);
-            if (fn) {
-                updateEquationStatus('Looks good. Use Apply Equations to update the surface.');
+            const a = analyzeEquation(cleaned, args);
+            if (a.error) {
+                updateEquationStatus('Error: ' + a.error);
+            } else if (a.autoParams.length) {
+                updateEquationStatus('Looks good. Will add slider' + (a.autoParams.length > 1 ? 's' : '') +
+                    ' for: ' + a.autoParams.join(', ') + '. Press Apply Equations.');
             } else {
-                updateEquationStatus('Check syntax: use * for multiplication and pi for constants.');
+                updateEquationStatus('Looks good. Press Apply Equations to update the surface.');
+            }
+        }
+
+        // Create draggable sliders for any single-letter unknowns the engine
+        // flagged (e.g. "a" in a*sin(x)) so the surface appears immediately.
+        function ensureAutoParams(expressions, args) {
+            const names = new Set();
+            for (const ex of expressions) {
+                for (const p of analyzeEquation(ex || '', args).autoParams) names.add(p);
+            }
+            for (const name of names) {
+                if (!registeredVars.has(name)) createVariableUI(name, 1);
+                if (!(name in userVariables)) userVariables[name] = 1;
             }
         }
 
@@ -2254,6 +2271,9 @@
         }
 
         function createVariableUI(name, defaultVal) {
+            if (registeredVars.has(name)) return;
+            registeredVars.add(name);
+            if (!(name in userVariables)) userVariables[name] = parseFloat(defaultVal);
             const row = document.createElement('div');
             row.className = 'var-row';
             row.innerHTML = `<div class="var-label">${name}</div><input type="range" min="-10" max="10" step="0.1" value="${defaultVal}"><input type="number" class="var-val" value="${defaultVal}">`;
@@ -2505,7 +2525,7 @@
 
         function tokenizeEquation(expr) {
             const tokens = [];
-            const re = /(\d*\.\d+|\d+\.?(?:[eE][+-]?\d+)?|[A-Za-z_][A-Za-z_0-9]*|\*\*|[()+\-*/%,])/g;
+            const re = /((?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?|[A-Za-z_][A-Za-z_0-9]*|\*\*|[()+\-*/%,])/g;
             let match;
             while ((match = re.exec(expr)) !== null) {
                 tokens.push(match[0]);
@@ -2567,7 +2587,7 @@
         }
 
         function isNumberToken(token) {
-            return /^(?:\d*\.\d+|\d+\.?(?:[eE][+-]?\d+)?)$/.test(token);
+            return /^(?:(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)$/.test(token);
         }
 
         function isIdentifierToken(token) {
@@ -2609,17 +2629,38 @@
             return out.join('');
         }
 
-        function normalizeEquation(expr, args) {
-            let cleaned = (expr || '').trim();
-            if (!cleaned) return '0';
+        const CONSTANT_LOWER = new Set(Object.keys(CONSTANT_ALIASES)); // pi,e,tau,phi
 
+        // Single source of truth: normalize + classify every identifier with
+        // one-token lookahead. Never throws. Returns:
+        //   { code, error, autoParams }
+        // - error: human message when the equation is definitively invalid
+        //   (unknown function, unknown multi-letter name, unsupported chars)
+        // - autoParams: single-letter unknowns (a,k,c...) that should become
+        //   draggable variable sliders so e.g. "a*sin(x)" just works.
+        function normalizeEquationCore(expr, args) {
+            const out = { code: '0', error: null, autoParams: [] };
+            let cleaned = (expr || '').trim();
+            if (!cleaned) return out;
+
+            // Normalise common "natural maths" notation to engine syntax.
+            // Only well-defined equivalents are translated; ambiguous symbols
+            // (=, <, >, \u2264, \u2265, \u2260, \u00B0, \u2026) deliberately still error clearly so a
+            // mistyped relation never silently graphs the wrong surface.
+            const SUP = { '\u2070': '0', '\u00B9': '1', '\u00B2': '2', '\u00B3': '3', '\u2074': '4', '\u2075': '5', '\u2076': '6', '\u2077': '7', '\u2078': '8', '\u2079': '9', '\u207A': '+', '\u207B': '-' };
             cleaned = cleaned
-                .replace(/[\u2013\u2014\u2212]/g, '-')
-                .replace(/[\u00D7\u00B7]/g, '*')
-                .replace(/\u00F7/g, '/')
-                .replace(/\u03C0/g, 'pi')
-                .replace(/\u03C4/g, 'tau')
-                .replace(/\u03C6/g, 'phi');
+                .replace(/[\u200B\u200C\u200D\uFEFF]/g, '')      // zero-width junk
+                .replace(/[\u2013\u2014\u2212]/g, '-')                           // dashes / minus sign
+                .replace(/[\u00D7\u00B7\u2217\u22C5]/g, '*')                          // \u00D7, \u00B7, \u2217, \u22C5
+                .replace(/[\u00F7\u2215\u2044]/g, '/')                            // \u00F7, division & fraction slash
+                .replace(/\u03C0/g, 'pi').replace(/\u03C4/g, 'tau').replace(/\u03C6/g, 'phi')
+                .replace(/[\[{]/g, '(').replace(/[\]}]/g, ')')     // [ ] { } -> ( )
+                .replace(/\u221A\s*(\([^()]*\)|[A-Za-z_]\w*|\d+(?:\.\d+)?)/g, 'sqrt($1)')
+                .replace(/\u221A/g, 'sqrt')                             // bare/nested fallback
+                .replace(/\u221B\s*(\([^()]*\)|[A-Za-z_]\w*|\d+(?:\.\d+)?)/g, 'cbrt($1)')
+                .replace(/\u221B/g, 'cbrt')
+                .replace(/[\u2070\u00B9\u00B2\u00B3\u2074\u2075\u2076\u2077\u2078\u2079\u207A\u207B]+/g, (run) =>            // superscript run -> **( \u2026 )
+                    '**(' + run.replace(/[\u2070\u00B9\u00B2\u00B3\u2074\u2075\u2076\u2077\u2078\u2079\u207A\u207B]/g, (c) => SUP[c]) + ')');
 
             const assignMatch = cleaned.match(/^\s*([xyz])\s*(\([^)]*\))?\s*=\s*(.+)$/i);
             if (assignMatch) cleaned = assignMatch[3];
@@ -2629,30 +2670,82 @@
             const stripped = cleaned.replace(/\s+/g, '');
             const tokens = tokenizeEquation(stripped);
             if (tokens.join('') !== stripped) {
-                throw new Error('Unsupported characters in equation.');
+                out.error = 'Unsupported character in equation. Use * for multiplication, ^ for powers, and write surfaces as z = f(x, y).';
+                return out;
             }
 
             const argNames = new Set(args.map(a => a.toLowerCase()));
             const varNames = new Set(Object.keys(userVariables).map(v => v.toLowerCase()));
             const allowedIdentifiers = new Set([...argNames, ...varNames, 'r', 'theta']);
             const allowedSingles = new Set([...argNames, ...varNames, 'r']);
+            const setError = (msg) => { if (!out.error) out.error = msg; };
+            const addAuto = (p) => { if (!out.autoParams.includes(p)) out.autoParams.push(p); };
+            const isValueChar = (lower) =>
+                allowedIdentifiers.has(lower) || CONSTANT_LOWER.has(lower) ||
+                (lower.length === 1 && /[a-z]/.test(lower));
+            const pushValueIdent = (lower) => {
+                if (CONSTANT_ALIASES[lower]) { expanded.push(CONSTANT_ALIASES[lower]); return; }
+                if (allowedIdentifiers.has(lower)) { expanded.push(lower); return; }
+                expanded.push(lower);                 // single-letter parameter
+                addAuto(lower);
+            };
 
             const expanded = [];
-            tokens.forEach((token) => {
-                if (isIdentifierToken(token)) {
-                    expanded.push(...expandIdentifierToken(token, allowedIdentifiers, allowedSingles));
-                } else {
-                    expanded.push(token);
-                }
-            });
+            for (let i = 0; i < tokens.length; i++) {
+                const tok = tokens[i];
+                if (!isIdentifierToken(tok)) { expanded.push(tok); continue; }
+                const next = tokens[i + 1];
+                let lower = tok.toLowerCase();
+                const aliased = FUNCTION_ALIASES[lower] || lower;
+                const isKnownFn = FUNCTION_NAMES.has(aliased);
 
-            return insertImplicitMultiplication(expanded);
+                if (next === '(') {
+                    if (isKnownFn) { expanded.push(aliased); continue; }   // function call
+                    if (isValueChar(lower)) { pushValueIdent(lower); continue; } // implicit mult: x(y+1), a(t+1)
+                    setError(`Unknown function "${tok}". Try a built-in like sin, cos, tan, sqrt, log, or exp.`);
+                    expanded.push('0');
+                    continue;
+                }
+
+                if (CONSTANT_ALIASES[lower]) { expanded.push(CONSTANT_ALIASES[lower]); continue; }
+                if (allowedIdentifiers.has(lower)) { expanded.push(lower); continue; }
+                if (isKnownFn) { expanded.push(aliased); continue; }       // bare fn name (legacy behaviour)
+                if (lower.length === 1 && /[a-z]/.test(lower)) { expanded.push(lower); addAuto(lower); continue; }
+
+                const parts = splitCompositeIdentifier(lower, allowedIdentifiers, allowedSingles);
+                if (parts) { expanded.push(...parts); continue; }          // e.g. "sinx" -> sin(x), "xy" -> x*y
+                setError(`Unknown name "${tok}". Use a number, a built-in function, or a single-letter variable.`);
+                expanded.push('0');
+            }
+
+            out.code = insertImplicitMultiplication(expanded);
+            return out;
         }
+
+        // Back-compat wrapper: throws on hard error, returns the JS string.
+        function normalizeEquation(expr, args) {
+            const r = normalizeEquationCore(expr, args);
+            if (r.error) throw new Error(r.error);
+            return r.code;
+        }
+
+        // For live "as you type" feedback: never throws.
+        function analyzeEquation(expr, args) {
+            const r = normalizeEquationCore(expr, args);
+            return { error: r.error || null, autoParams: r.autoParams || [] };
+        }
+
+        let lastEquationError = '';
 
         function createFunction(expr, args) {
             try {
-                const cleaned = normalizeEquation(expr, args);
+                const res = normalizeEquationCore(expr, args);
+                if (res.error) { lastEquationError = res.error; return null; }
+                lastEquationError = '';
+                const auto = res.autoParams || [];
+                const cleaned = res.code;
                 const vars = Object.keys(userVariables);
+                const destructVars = vars.filter(v => !auto.includes(v));
                 const mathNames = Object.getOwnPropertyNames(Math);
                 const argNames = new Set(args.map(a => a.toLowerCase()));
                 let derived = 'const TAU = 2 * PI; const PHI = (1 + sqrt(5)) / 2;';
@@ -2662,12 +2755,18 @@
                     derived += ' const r = sqrt(u*u + v*v); const theta = atan2(v, u);';
                 }
                 derived += ' const sec = (x) => 1 / cos(x); const csc = (x) => 1 / sin(x); const cot = (x) => 1 / tan(x);';
+                // Auto-slider params default to 1 and track their slider once created.
+                for (const p of auto) {
+                    derived += ` const ${p} = (variables && variables['${p}'] != null ? +variables['${p}'] : 1);`;
+                }
+                const destructLine = destructVars.length ? `const {${destructVars.join(',')}} = variables;` : '';
                 return new Function(
                     ...args,
                     'variables',
-                    `"use strict"; const {${mathNames.join(',')}} = Math; const {${vars.join(',')}} = variables; ${derived} return ${cleaned};`
+                    `"use strict"; const {${mathNames.join(',')}} = Math; ${destructLine} ${derived} return ${cleaned};`
                 );
             } catch (e) {
+                lastEquationError = (e && e.message) ? e.message : 'Could not parse equation.';
                 return null;
             }
         }
@@ -2768,7 +2867,7 @@
                     z: createFunction(layer.curveZ, ['u', 't'])
                 };
                 if (!layer.funcCurve.x || !layer.funcCurve.y || !layer.funcCurve.z) {
-                    showError('Curve equations could not be parsed. Use u for the curve parameter and add * for multiplication.');
+                    showError(lastEquationError || 'Curve equations could not be parsed. Use u for the curve parameter and add * for multiplication.');
                 }
                 if (layer.curveRadius > 0) {
                     const points = sampleCurvePoints(layer, 0, false);
@@ -2789,7 +2888,7 @@
             } else if (layer.type === 'function') {
                 layer.funcZ = createFunction(layer.equation, ['x', 'y', 't']);
                 if (!layer.funcZ) {
-                    showError('Equation could not be parsed. Try explicit z = f(x,y), add * for multiplication, or replace ^ with **.');
+                    showError(lastEquationError || 'Equation could not be parsed. Try explicit z = f(x,y), add * for multiplication, or replace ^ with **.');
                     layer.funcZ = (x, y, t) => 0;
                 }
                 layer.geometry = new THREE.PlaneGeometry(layer.rangeX*2, layer.rangeY*2, segments, segments).rotateX(-Math.PI/2);
@@ -2800,7 +2899,7 @@
                     z: createFunction(layer.pZ, ['u', 'v', 't'])
                 };
                 if (!layer.funcParam.x || !layer.funcParam.y || !layer.funcParam.z) {
-                    showError('Parametric equations could not be parsed. Try explicit x=, y=, z= forms and add * for multiplication.');
+                    showError(lastEquationError || 'Parametric equations could not be parsed. Try explicit x=, y=, z= forms and add * for multiplication.');
                 }
                 layer.geometry = new ParametricGeometry((u, v, tgt) => {
                     const uu = layer.uMin + u*(layer.uMax-layer.uMin);
@@ -3284,6 +3383,10 @@ function updateActiveLayer() {
             layer.useEquationAnim = uiElements.useEquationAnim?.checked || false;
 
             if (uiElements.error) uiElements.error.textContent = '';
+
+            if (layer.type === 'function') ensureAutoParams([layer.equation], ['x', 'y', 't']);
+            else if (layer.type === 'parametric') ensureAutoParams([layer.pX, layer.pY, layer.pZ], ['u', 'v', 't']);
+            else ensureAutoParams([layer.curveX, layer.curveY, layer.curveZ], ['u', 't']);
 
             buildLayerMesh(layer);
         }
