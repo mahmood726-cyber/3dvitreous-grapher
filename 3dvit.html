@@ -2172,9 +2172,9 @@
             const layer = layers.find(l => l.id === activeLayerId);
             if (!layer || !layer.root) return;
 
-            layer.posX = parseFloat(uiElements.posX?.value) || 0;
-            layer.posY = parseFloat(uiElements.posY?.value) || 0;
-            layer.posZ = parseFloat(uiElements.posZ?.value) || 0;
+            layer.posX = isFinite(parseFloat(uiElements.posX?.value)) ? parseFloat(uiElements.posX.value) : 0;
+            layer.posY = isFinite(parseFloat(uiElements.posY?.value)) ? parseFloat(uiElements.posY.value) : 0;
+            layer.posZ = isFinite(parseFloat(uiElements.posZ?.value)) ? parseFloat(uiElements.posZ.value) : 0;
 
             layer.root.position.set(layer.posX, layer.posY, layer.posZ);
         }
@@ -3270,13 +3270,14 @@ function updateActiveLayer() {
                 layer.curveUMin = parseScalarInput(uiElements.curveUMin?.value, 0);
                 layer.curveUMax = parseScalarInput(uiElements.curveUMax?.value, 6.28);
                 layer.curveSegments = Math.max(20, parseInt(uiElements.curveSegments?.value || 200, 10));
-                layer.curveRadius = Math.max(0, parseFloat(uiElements.curveRadius?.value) || 0);
+                layer.curveRadius = Math.max(0, isFinite(parseFloat(uiElements.curveRadius?.value)) ? parseFloat(uiElements.curveRadius.value) : 0);
                 layer.curveClosed = uiElements.curveClosed?.checked || false;
             }
 
             layer.style = uiElements.style?.value || 'plastic';
             layer.pattern = uiElements.pattern?.value || 'none';
-            layer.opacity = parseFloat(uiElements.opacity?.value) || 1;
+            const _op1 = parseFloat(uiElements.opacity?.value);
+            layer.opacity = isFinite(_op1) ? _op1 : 1;
             layer.colorLow = uiElements.colorLow?.value || '#3b82f6';
             layer.colorHigh = uiElements.colorHigh?.value || '#60a5fa';
 
@@ -3293,7 +3294,8 @@ function updateActiveLayer() {
             if (layer?.root) {
                 layer.style = uiElements.style?.value || 'plastic';
                 layer.pattern = uiElements.pattern?.value || 'none';
-                layer.opacity = parseFloat(uiElements.opacity?.value) || 1;
+                const _op2 = parseFloat(uiElements.opacity?.value);
+                layer.opacity = isFinite(_op2) ? _op2 : 1;
                 if (layer.type === 'curve') {
                     layer.root.traverse(c => {
                         if (c.isLine) {

@@ -729,9 +729,9 @@
             const layer = layers.find(l => l.id === activeLayerId);
             if (!layer || !layer.root) return;
 
-            layer.posX = parseFloat(uiElements.posX?.value) || 0;
-            layer.posY = parseFloat(uiElements.posY?.value) || 0;
-            layer.posZ = parseFloat(uiElements.posZ?.value) || 0;
+            layer.posX = isFinite(parseFloat(uiElements.posX?.value)) ? parseFloat(uiElements.posX.value) : 0;
+            layer.posY = isFinite(parseFloat(uiElements.posY?.value)) ? parseFloat(uiElements.posY.value) : 0;
+            layer.posZ = isFinite(parseFloat(uiElements.posZ?.value)) ? parseFloat(uiElements.posZ.value) : 0;
 
             layer.root.position.set(layer.posX, layer.posY, layer.posZ);
         }

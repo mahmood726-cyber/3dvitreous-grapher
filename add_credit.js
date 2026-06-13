@@ -1,5 +1,6 @@
 const fs = require('fs');
-const path = 'C:/Users/user/Downloads/3dvitreous 3d grapher/3dvit.html';
+const nodePath = require('path');
+const path = nodePath.resolve(__dirname, '3dvit.html');
 
 let content = fs.readFileSync(path, 'utf8');
 
